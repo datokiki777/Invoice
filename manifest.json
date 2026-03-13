@@ -2,7 +2,7 @@
   "name": "D-BUILDER Invoice",
   "short_name": "D-Invoice",
   "description": "D-BUILDER Professional Invoice Manager",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0d3d7a",
   "theme_color": "#0d3d7a",
@@ -20,7 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["business", "finance"],
-  "screenshots": []
+  ]
 }
