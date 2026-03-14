@@ -296,7 +296,7 @@ function loadAppData() {
             bankName: oldCompany.bankName || '',
             bankIban: oldCompany.bankIban || '',
             bankBic: oldCompany.bankBic || '',
-            logoKey: 'neutral'
+            logoKey: 'shared1'
         };
 
         APP_DATA.companies = [migratedCompany];
