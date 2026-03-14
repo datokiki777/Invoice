@@ -131,26 +131,31 @@ function ensureLogoAccess(selectedLogoKey) {
     if (selectedLogoKey !== 'owner') return selectedLogoKey;
     if (isOwnerLogoUnlocked()) return 'owner';
 
-    const code = window.prompt('Enter code to unlock Your Logo:');
-    if (!code) {
-        const select = document.getElementById('new_company_logo');
-        if (select) select.value = 'shared1';
-        refreshOwnerLogoOptionText();
-        return 'shared1';
-    }
-
-    const ok = unlockOwnerLogo(code);
-
-    if (ok) {
-        refreshOwnerLogoOptionText();
-        showToast('🔓 Your Logo unlocked');
-        return 'owner';
-    }
-
+    // Revert to shared1 while waiting for modal input
     const select = document.getElementById('new_company_logo');
     if (select) select.value = 'shared1';
     refreshOwnerLogoOptionText();
-    showToast('❌ Wrong code');
+
+    showLogoUnlockModal(function(code) {
+        if (!code) return;
+        const ok = unlockOwnerLogo(code);
+        if (ok) {
+            refreshOwnerLogoOptionText();
+            refreshLogoHelpText();
+            refreshUnlockLogoButton();
+            showToast('🔓 Your Logo unlocked');
+            // Auto-select owner logo after unlock
+            const sel = document.getElementById('new_company_logo');
+            if (sel) {
+                sel.value = 'owner';
+                // Trigger save if needed
+                const co = getCurrentCompany();
+                if (co) { co.logoKey = 'owner'; saveAppData(); renderInvoiceForm(); }
+            }
+        } else {
+            showToast('❌ Wrong code');
+        }
+    });
 
     return 'shared1';
 }
@@ -187,19 +192,51 @@ function unlockYourLogoManually() {
         return;
     }
 
-    const code = window.prompt('Enter code to unlock Your Logo:');
-    if (!code) return;
+    showLogoUnlockModal(function(code) {
+        if (!code) return;
+        const ok = unlockOwnerLogo(code);
+        if (ok) {
+            refreshOwnerLogoOptionText();
+            refreshLogoHelpText();
+            refreshUnlockLogoButton();
+            showToast('🔓 Your Logo unlocked');
+        } else {
+            showToast('❌ Wrong code');
+        }
+    });
+}
 
-    const ok = unlockOwnerLogo(code);
+// =========================================
+// LOGO UNLOCK MODAL (custom, no browser prompt)
+// =========================================
+function showLogoUnlockModal(callback) {
+    const overlay = document.getElementById('logo-unlock-overlay');
+    const input = document.getElementById('logo-unlock-input');
+    if (!overlay || !input) return;
 
-    if (ok) {
-        refreshOwnerLogoOptionText();
-        refreshLogoHelpText();
-        refreshUnlockLogoButton();
-        showToast('🔓 Your Logo unlocked');
-    } else {
-        showToast('❌ Wrong code');
+    input.value = '';
+    overlay.classList.add('show');
+
+    // Store callback
+    overlay._unlockCallback = callback;
+
+    setTimeout(() => input.focus(), 100);
+}
+
+function closeLogoUnlockModal(confirmed) {
+    const overlay = document.getElementById('logo-unlock-overlay');
+    if (!overlay) return;
+
+    overlay.classList.remove('show');
+
+    if (confirmed && overlay._unlockCallback) {
+        const input = document.getElementById('logo-unlock-input');
+        overlay._unlockCallback(input ? input.value.trim() : '');
+    } else if (!confirmed && overlay._unlockCallback) {
+        overlay._unlockCallback(null);
     }
+
+    overlay._unlockCallback = null;
 }
 
 function refreshLogoHelpText() {
@@ -386,24 +423,32 @@ function showInstallUI() {
     }
 
     if (deferredPrompt) {
-        const toast = document.getElementById('toast');
-        if (!toast) return;
-
-        toast.innerHTML = '📲 Install this app on your home screen! <button onclick="triggerAndroidInstall()" style="background:var(--secondary);color:var(--primary);border:none;border-radius:12px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px;">Install</button>';
-        toast.classList.add('show');
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 7000);
+        const sheet = document.getElementById('install-sheet');
+        const overlay = document.getElementById('install-sheet-overlay');
+        if (sheet) sheet.classList.add('show');
+        if (overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        }
     }
 }
 
 function hideInstallUI() {
-    const toast = document.getElementById('toast');
-    if (toast) toast.classList.remove('show');
+    const sheet = document.getElementById('install-sheet');
+    const overlay = document.getElementById('install-sheet-overlay');
+    if (sheet) sheet.classList.remove('show');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+    }
 
     const banner = document.getElementById('ios-banner');
     if (banner) banner.classList.remove('show');
+}
+
+function dismissInstallSheet() {
+    hideInstallUI();
+    sessionStorage.setItem('install_prompt_seen', '1');
 }
 
 function dismissIOSBanner() {
@@ -521,8 +566,9 @@ window.onload = function () {
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     if (modalConfirmBtn) {
         modalConfirmBtn.onclick = function () {
+            const cb = modalCallback;
             closeModal();
-            if (modalCallback) modalCallback();
+            if (cb) cb();
         };
     }
 
