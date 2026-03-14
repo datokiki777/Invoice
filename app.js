@@ -4,25 +4,30 @@
 let deferredPrompt = null;
 let swRegistration = null;
 let modalCallback = null;
-let currentLang = localStorage.getItem('db_lang') || 'en';
+let currentLang = 'en';
 
 // =========================================
 // DATA MODEL
 // =========================================
+// Global: only companies list + active company id
 let APP_DATA = {
     companies: [],
-    currentCompanyId: '',
+    currentCompanyId: ''
+};
+
+// Active company's data (loaded per company)
+let COMPANY_DATA = {
+    invoices: [],
+    clients: [],
     currentInvoice: {
-        companyId: '',
         num: '',
         date: '',
         client: '',
+        clientId: '',
         vatRate: 21,
         vatText: '',
         items: [{ desc: '', qty: 1, price: 0 }]
-    },
-    invoices: [],
-    clients: []
+    }
 };
 
 // ============================
@@ -98,34 +103,13 @@ function getCurrentCompany() {
 
 function ensureCurrentCompany() {
     if (!APP_DATA.companies) APP_DATA.companies = [];
-
-    // Don't auto-create — let user add company manually
-    if (APP_DATA.companies.length === 0) return;
-
-    if (!APP_DATA.currentCompanyId && APP_DATA.companies[0]) {
+    if (!APP_DATA.currentCompanyId && APP_DATA.companies.length > 0) {
         APP_DATA.currentCompanyId = APP_DATA.companies[0].id;
     }
-
-    // Validate currentCompanyId still exists
-    const exists = APP_DATA.companies.find(c => c.id === APP_DATA.currentCompanyId);
-    if (!exists && APP_DATA.companies[0]) {
+    const exists = APP_DATA.currentCompanyId &&
+        APP_DATA.companies.find(c => c.id === APP_DATA.currentCompanyId);
+    if (!exists && APP_DATA.companies.length > 0) {
         APP_DATA.currentCompanyId = APP_DATA.companies[0].id;
-    }
-
-    if (!APP_DATA.currentInvoice) {
-        APP_DATA.currentInvoice = {
-            companyId: APP_DATA.currentCompanyId,
-            num: '',
-            date: '',
-            client: '',
-            vatRate: 21,
-            vatText: '',
-            items: [{ desc: '', qty: 1, price: 0 }]
-        };
-    }
-
-    if (!APP_DATA.currentInvoice.companyId) {
-        APP_DATA.currentInvoice.companyId = APP_DATA.currentCompanyId;
     }
 }
 
@@ -328,68 +312,40 @@ const LANG = {
 };
 
 // =========================================
-// STORAGE
+// STORAGE — per-company isolated
 // =========================================
-function loadAppData() {
-    const raw = localStorage.getItem('invoice_app_v1');
 
+function getCompanyStorageKey(id) {
+    return 'invoice_co_' + id;
+}
+
+function loadCompanyData(id) {
+    if (!id) return;
+    const raw = localStorage.getItem(getCompanyStorageKey(id));
     if (raw) {
         try {
-            APP_DATA = JSON.parse(raw);
-        } catch (e) {}
-    }
-
-    // ძველი სტრუქტურიდან ახალ მრავალკომპანიურ სტრუქტურაზე გადაყვანა
-    if (!APP_DATA.companies) {
-        const oldCompany = APP_DATA.company || {};
-
-        const migratedCompany = {
-            id: 'company_' + Date.now(),
-            name: oldCompany.name || '',
-            reg: oldCompany.reg || '',
-            addr: oldCompany.addr || '',
-            phone: oldCompany.phone || '',
-            email: oldCompany.email || '',
-            website: oldCompany.website || '',
-            bankRecip: oldCompany.bankRecip || '',
-            bankName: oldCompany.bankName || '',
-            bankIban: oldCompany.bankIban || '',
-            bankBic: oldCompany.bankBic || '',
-            logoKey: 'shared1'
-        };
-
-        APP_DATA.companies = [migratedCompany];
-        APP_DATA.currentCompanyId = migratedCompany.id;
-
-        if (!APP_DATA.currentInvoice) {
-            APP_DATA.currentInvoice = {
-                companyId: migratedCompany.id,
-                num: '',
-                date: '',
-                client: '',
-                vatRate: 21,
-                vatText: '',
-                items: [{ desc: '', qty: 1, price: 0 }]
-            };
-        } else {
-            APP_DATA.currentInvoice.companyId = migratedCompany.id;
+            const parsed = JSON.parse(raw);
+            COMPANY_DATA.invoices = Array.isArray(parsed.invoices) ? parsed.invoices : [];
+            COMPANY_DATA.clients = Array.isArray(parsed.clients) ? parsed.clients : [];
+            COMPANY_DATA.currentInvoice = parsed.currentInvoice || null;
+        } catch(e) {
+            COMPANY_DATA.invoices = [];
+            COMPANY_DATA.clients = [];
+            COMPANY_DATA.currentInvoice = null;
         }
-
-        delete APP_DATA.company;
+    } else {
+        COMPANY_DATA.invoices = [];
+        COMPANY_DATA.clients = [];
+        COMPANY_DATA.currentInvoice = null;
     }
 
-    if (!Array.isArray(APP_DATA.companies)) APP_DATA.companies = [];
-    if (!Array.isArray(APP_DATA.invoices)) APP_DATA.invoices = [];
-    if (!Array.isArray(APP_DATA.clients)) APP_DATA.clients = [];
-
-    ensureCurrentCompany();
-
-    // Ensure currentInvoice always exists
-    if (!APP_DATA.currentInvoice) {
-        APP_DATA.currentInvoice = {
-            companyId: APP_DATA.currentCompanyId || '',
-            num: '',
-            date: '',
+    // Ensure valid currentInvoice
+    if (!COMPANY_DATA.currentInvoice ||
+        !COMPANY_DATA.currentInvoice.num ||
+        !Array.isArray(COMPANY_DATA.currentInvoice.items)) {
+        COMPANY_DATA.currentInvoice = {
+            num: generateInvoiceNumber(),
+            date: getCurrentDate(),
             client: '',
             clientId: '',
             vatRate: 21,
@@ -397,27 +353,85 @@ function loadAppData() {
             items: [{ desc: '', qty: 1, price: 0 }]
         };
     }
+}
 
-    if (!APP_DATA.currentInvoice.items ||
-        !Array.isArray(APP_DATA.currentInvoice.items) ||
-        APP_DATA.currentInvoice.items.length === 0
-    ) {
-        APP_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
-    }
+function saveCompanyData() {
+    if (!APP_DATA.currentCompanyId) return;
+    localStorage.setItem(
+        getCompanyStorageKey(APP_DATA.currentCompanyId),
+        JSON.stringify(COMPANY_DATA)
+    );
+}
 
-    APP_DATA.invoices = APP_DATA.invoices.map(inv => ({
-        ...inv,
-        companyId: inv.companyId || APP_DATA.currentCompanyId
-    }));
-
-    APP_DATA.clients = APP_DATA.clients.map(client => ({
-        ...client,
-        companyId: client.companyId || APP_DATA.currentCompanyId
+function saveGlobalData() {
+    localStorage.setItem('invoice_global_v2', JSON.stringify({
+        companies: APP_DATA.companies,
+        currentCompanyId: APP_DATA.currentCompanyId
     }));
 }
 
+function loadAppData() {
+    // Try new global storage
+    const raw = localStorage.getItem('invoice_global_v2');
+    if (raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            APP_DATA.companies = Array.isArray(parsed.companies) ? parsed.companies : [];
+            APP_DATA.currentCompanyId = parsed.currentCompanyId || '';
+        } catch(e) {}
+    } else {
+        // Migrate from old invoice_app_v1
+        const oldRaw = localStorage.getItem('invoice_app_v1');
+        if (oldRaw) {
+            try {
+                const old = JSON.parse(oldRaw);
+                APP_DATA.companies = Array.isArray(old.companies) ? old.companies : [];
+                APP_DATA.currentCompanyId = old.currentCompanyId || '';
+
+                // Migrate old data into per-company storage
+                APP_DATA.companies.forEach(co => {
+                    const coInvoices = (old.invoices || []).filter(i => i.companyId === co.id);
+                    const coClients = (old.clients || []).filter(c => c.companyId === co.id);
+                    const coInvoice = (old.currentInvoice && old.currentInvoice.companyId === co.id)
+                        ? old.currentInvoice : null;
+                    localStorage.setItem(getCompanyStorageKey(co.id), JSON.stringify({
+                        invoices: coInvoices,
+                        clients: coClients,
+                        currentInvoice: coInvoice
+                    }));
+                });
+
+                // Save new global format and clean up old key
+                saveGlobalData();
+                localStorage.removeItem('invoice_app_v1');
+            } catch(e) {}
+        }
+    }
+
+    if (!Array.isArray(APP_DATA.companies)) APP_DATA.companies = [];
+
+    // Validate currentCompanyId
+    if (APP_DATA.currentCompanyId) {
+        const exists = APP_DATA.companies.find(c => c.id === APP_DATA.currentCompanyId);
+        if (!exists && APP_DATA.companies.length > 0) {
+            APP_DATA.currentCompanyId = APP_DATA.companies[0].id;
+        }
+    } else if (APP_DATA.companies.length > 0) {
+        APP_DATA.currentCompanyId = APP_DATA.companies[0].id;
+    }
+
+    // Load active company's data
+    if (APP_DATA.currentCompanyId) {
+        loadCompanyData(APP_DATA.currentCompanyId);
+        // Load lang from active company
+        const co = getCurrentCompany();
+        if (co && co.lang) currentLang = co.lang;
+    }
+}
+
 function saveAppData() {
-    localStorage.setItem('invoice_app_v1', JSON.stringify(APP_DATA));
+    saveGlobalData();
+    saveCompanyData();
 }
 
 // =========================================
@@ -581,16 +595,27 @@ window.onload = function () {
         todayStatus.innerText = '📅 ' + getCurrentDate();
     }
 
-    APP_DATA.currentInvoice.companyId = APP_DATA.currentCompanyId;
 
-    if (!APP_DATA.currentInvoice.num || APP_DATA.currentInvoice.num.trim() === '') {
-        APP_DATA.currentInvoice.num = generateInvoiceNumber();
+    if (!COMPANY_DATA.currentInvoice) {
+        COMPANY_DATA.currentInvoice = {
+            num: '',
+            date: '',
+            client: '',
+            clientId: '',
+            vatRate: 21,
+            vatText: '',
+            items: [{ desc: '', qty: 1, price: 0 }]
+        };
     }
-    if (!APP_DATA.currentInvoice.date || APP_DATA.currentInvoice.date.trim() === '') {
-        APP_DATA.currentInvoice.date = getCurrentDate();
+
+    if (!COMPANY_DATA.currentInvoice.num || COMPANY_DATA.currentInvoice.num.trim() === '') {
+        COMPANY_DATA.currentInvoice.num = generateInvoiceNumber();
     }
-    if (!APP_DATA.currentInvoice.items || APP_DATA.currentInvoice.items.length === 0) {
-        APP_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
+    if (!COMPANY_DATA.currentInvoice.date || COMPANY_DATA.currentInvoice.date.trim() === '') {
+        COMPANY_DATA.currentInvoice.date = getCurrentDate();
+    }
+    if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
+        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
     }
 
     // If no companies yet — go straight to Companies page
@@ -660,7 +685,7 @@ function showPage(name) {
 // INVOICE FORM
 // =========================================
 function renderInvoiceForm() {
-    const ci = APP_DATA.currentInvoice;
+    const ci = COMPANY_DATA.currentInvoice;
     const co = getCurrentCompany() || createEmptyCompany();
 
     document.getElementById('my_comp_name').value = co.name || '';
@@ -720,7 +745,7 @@ function renderItemRows() {
     const tbody = document.getElementById('items-body');
     tbody.innerHTML = '';
 
-    APP_DATA.currentInvoice.items.forEach((item, i) => {
+    COMPANY_DATA.currentInvoice.items.forEach((item, i) => {
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.dataset.index = i;
@@ -747,7 +772,7 @@ function renderItemRows() {
                 €<span id="row-total-${i}">${total.toFixed(2)}</span>
             </td>
             <td class="no-print" style="width:36px">
-                ${APP_DATA.currentInvoice.items.length > 1 ? `<button class="remove-row-btn" onclick="removeItemRow(${i})" title="Delete">✕</button>` : ''}
+                ${COMPANY_DATA.currentInvoice.items.length > 1 ? `<button class="remove-row-btn" onclick="removeItemRow(${i})" title="Delete">✕</button>` : ''}
             </td>
         `;
 
@@ -756,13 +781,13 @@ function renderItemRows() {
 }
 
 function updateItem(index, field, value) {
-    APP_DATA.currentInvoice.items[index][field] = value;
+    COMPANY_DATA.currentInvoice.items[index][field] = value;
     calculateAll();
     saveAppData();
 }
 
 function addItemRow() {
-    APP_DATA.currentInvoice.items.push({ desc: '', qty: 1, price: 0 });
+    COMPANY_DATA.currentInvoice.items.push({ desc: '', qty: 1, price: 0 });
     renderItemRows();
     calculateAll();
     saveAppData();
@@ -772,14 +797,14 @@ function addItemRow() {
 }
 
 function removeItemRow(index) {
-    APP_DATA.currentInvoice.items.splice(index, 1);
+    COMPANY_DATA.currentInvoice.items.splice(index, 1);
     renderItemRows();
     calculateAll();
     saveAppData();
 }
 
 function calculateAll() {
-    const items = APP_DATA.currentInvoice.items;
+    const items = COMPANY_DATA.currentInvoice.items;
     let subtotal = 0;
 
     items.forEach((item, i) => {
@@ -793,7 +818,7 @@ function calculateAll() {
     });
 
     const vatRate = parseFloat(document.getElementById('vat_rate').value) || 0;
-    APP_DATA.currentInvoice.vatRate = vatRate;
+    COMPANY_DATA.currentInvoice.vatRate = vatRate;
 
     const vat = subtotal * (vatRate / 100);
     const total = subtotal + vat;
@@ -820,12 +845,11 @@ function saveAllData() {
         company.bankBic = document.getElementById('bank_bic').value;
     }
 
-    APP_DATA.currentInvoice.companyId = APP_DATA.currentCompanyId;
-    APP_DATA.currentInvoice.num = document.getElementById('inv_num').value;
-    APP_DATA.currentInvoice.date = document.getElementById('inv_date').value;
-    APP_DATA.currentInvoice.client = document.getElementById('client_info').value;
-    APP_DATA.currentInvoice.vatRate = parseFloat(document.getElementById('vat_rate').value) || 0;
-    APP_DATA.currentInvoice.vatText = document.getElementById('vat_text').value;
+    COMPANY_DATA.currentInvoice.num = document.getElementById('inv_num').value;
+    COMPANY_DATA.currentInvoice.date = document.getElementById('inv_date').value;
+    COMPANY_DATA.currentInvoice.client = document.getElementById('client_info').value;
+    COMPANY_DATA.currentInvoice.vatRate = parseFloat(document.getElementById('vat_rate').value) || 0;
+    COMPANY_DATA.currentInvoice.vatText = document.getElementById('vat_text').value;
 
     saveAppData();
     calculateAll();
@@ -837,15 +861,15 @@ function saveAllData() {
 function saveInvoiceToHistory() {
     saveAllData();
 
-    const inv = JSON.parse(JSON.stringify(APP_DATA.currentInvoice));
+    const inv = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
     inv.savedAt = new Date().toISOString();
 
-    const existIdx = APP_DATA.invoices.findIndex(i => i.num === inv.num);
+    const existIdx = COMPANY_DATA.invoices.findIndex(i => i.num === inv.num);
 
     if (existIdx >= 0) {
-        APP_DATA.invoices[existIdx] = inv;
+        COMPANY_DATA.invoices[existIdx] = inv;
     } else {
-        APP_DATA.invoices.unshift(inv);
+        COMPANY_DATA.invoices.unshift(inv);
     }
 
     saveAppData();
@@ -856,10 +880,8 @@ function saveInvoiceToHistory() {
 function renderHistory() {
     const list = document.getElementById('history-list');
 
-    // Filter to current company only
-    const companyInvoices = (APP_DATA.invoices || [])
-        .map((inv, realIdx) => ({ inv, realIdx }))
-        .filter(({ inv }) => inv.companyId === APP_DATA.currentCompanyId);
+    const companyInvoices = (COMPANY_DATA.invoices || [])
+        .map((inv, realIdx) => ({ inv, realIdx }));
 
     if (companyInvoices.length === 0) {
         list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂️</div><p>No invoices saved yet</p></div>`;
@@ -874,7 +896,7 @@ function renderHistory() {
         const vat = subtotal * ((parseFloat(inv.vatRate) || 0) / 100);
         const total = subtotal + vat;
 
-        const isCurrent = inv.num === APP_DATA.currentInvoice.num;
+        const isCurrent = inv.num === COMPANY_DATA.currentInvoice.num;
         const clientName = (inv.client || '').split('\n')[0] || 'No client';
 
         const savedDate = inv.savedAt
@@ -904,13 +926,11 @@ function renderHistory() {
 }
 
 function loadInvoiceFromHistory(index) {
-    APP_DATA.currentInvoice = JSON.parse(JSON.stringify(APP_DATA.invoices[index]));
+    COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(COMPANY_DATA.invoices[index]));
 
-    if (!APP_DATA.currentInvoice.items || APP_DATA.currentInvoice.items.length === 0) {
-        APP_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
+    if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
+        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
     }
-
-    APP_DATA.currentCompanyId = APP_DATA.currentInvoice.companyId || APP_DATA.currentCompanyId;
 
     saveAppData();
     renderInvoiceForm();
@@ -920,8 +940,8 @@ function loadInvoiceFromHistory(index) {
 }
 
 function deleteInvoice(index) {
-    confirmAction('Delete Invoice', `Delete invoice #${APP_DATA.invoices[index].num}? This cannot be undone.`, () => {
-        APP_DATA.invoices.splice(index, 1);
+    confirmAction('Delete Invoice', `Delete invoice #${COMPANY_DATA.invoices[index].num}? This cannot be undone.`, () => {
+        COMPANY_DATA.invoices.splice(index, 1);
         saveAppData();
         renderHistory();
         showToast('🗑️ Invoice deleted');
@@ -933,8 +953,7 @@ function deleteInvoice(index) {
 // =========================================
 function newInvoice() {
     confirmAction('New Invoice', 'Create a new invoice? Make sure current invoice is saved.', () => {
-        APP_DATA.currentInvoice = {
-            companyId: APP_DATA.currentCompanyId,
+        COMPANY_DATA.currentInvoice = {
             num: generateInvoiceNumber(),
             date: getCurrentDate(),
             client: '',
@@ -953,7 +972,13 @@ function newInvoice() {
 function clearEverything() {
     confirmAction('Reset Everything', 'All data will be cleared. Are you sure?', () => {
         localStorage.removeItem('invoice_app_v1');
+        localStorage.removeItem('invoice_global_v2');
         localStorage.removeItem('dbuilder_v2');
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('invoice_co_')) {
+                localStorage.removeItem(key);
+            }
+        });
         location.reload();
     });
 }
@@ -972,7 +997,6 @@ function saveClient() {
 
     const client = {
         id: editId || Date.now().toString(),
-        companyId: APP_DATA.currentCompanyId,
         name,
         reg: document.getElementById('new_client_reg').value.trim(),
         addr: document.getElementById('new_client_addr').value.trim(),
@@ -982,10 +1006,10 @@ function saveClient() {
     };
 
     if (editId) {
-        const idx = APP_DATA.clients.findIndex(c => c.id === editId);
-        if (idx >= 0) APP_DATA.clients[idx] = client;
+        const idx = COMPANY_DATA.clients.findIndex(c => c.id === editId);
+        if (idx >= 0) COMPANY_DATA.clients[idx] = client;
     } else {
-        APP_DATA.clients.push(client);
+        COMPANY_DATA.clients.push(client);
     }
 
     saveAppData();
@@ -996,7 +1020,7 @@ function saveClient() {
 }
 
 function editClient(id) {
-    const c = APP_DATA.clients.find(c => c.id === id);
+    const c = COMPANY_DATA.clients.find(c => c.id === id);
     if (!c) return;
 
     document.getElementById('edit_client_id').value = c.id;
@@ -1029,11 +1053,11 @@ function clearClientForm() {
 }
 
 function deleteClient(id) {
-    const c = APP_DATA.clients.find(cl => cl.id === id);
+    const c = COMPANY_DATA.clients.find(cl => cl.id === id);
     if (!c) return;
 
     confirmAction('Delete Client', `Delete "${c.name}"?`, () => {
-        APP_DATA.clients = APP_DATA.clients.filter(cl => cl.id !== id);
+        COMPANY_DATA.clients = COMPANY_DATA.clients.filter(cl => cl.id !== id);
         saveAppData();
         renderClients();
         refreshClientPicker();
@@ -1042,7 +1066,7 @@ function deleteClient(id) {
 }
 
 function useClientForInvoice(id) {
-    const c = APP_DATA.clients.find(cl => cl.id === id);
+    const c = COMPANY_DATA.clients.find(cl => cl.id === id);
     if (!c) return;
 
     let info = c.name;
@@ -1051,8 +1075,8 @@ function useClientForInvoice(id) {
     if (c.email) info += '\n' + c.email;
     if (c.phone) info += '\n' + c.phone;
 
-    APP_DATA.currentInvoice.client = info;
-    APP_DATA.currentInvoice.clientId = id;
+    COMPANY_DATA.currentInvoice.client = info;
+    COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
     saveAppData();
     showPage('invoice');
@@ -1061,7 +1085,7 @@ function useClientForInvoice(id) {
 
 function renderClients() {
     const grid = document.getElementById('clients-grid');
-    const companyClients = (APP_DATA.clients || []).filter(c => c.companyId === APP_DATA.currentCompanyId);
+    const companyClients = COMPANY_DATA.clients || [];
 
     if (!companyClients.length) {
         grid.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">👤</div><p>No clients yet</p></div>`;
@@ -1087,13 +1111,13 @@ function refreshClientPicker() {
     if (!sel) return;
     sel.innerHTML = '<option value="">— Select a client —</option>';
 
-    const companyClients = (APP_DATA.clients || []).filter(c => c.companyId === APP_DATA.currentCompanyId);
+    const companyClients = COMPANY_DATA.clients || [];
 
     companyClients.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
         opt.textContent = c.name;
-        if (APP_DATA.currentInvoice.clientId && APP_DATA.currentInvoice.clientId === c.id) {
+        if (COMPANY_DATA.currentInvoice.clientId && COMPANY_DATA.currentInvoice.clientId === c.id) {
             opt.selected = true;
         }
         sel.appendChild(opt);
@@ -1103,14 +1127,14 @@ function refreshClientPicker() {
 function fillClientFromPicker() {
     const id = document.getElementById('client_picker').value;
     if (!id) {
-        APP_DATA.currentInvoice.client = '';
-        APP_DATA.currentInvoice.clientId = '';
+        COMPANY_DATA.currentInvoice.client = '';
+        COMPANY_DATA.currentInvoice.clientId = '';
         document.getElementById('client_info').value = '';
         saveAppData();
         return;
     }
 
-    const c = APP_DATA.clients.find(cl => cl.id === id);
+    const c = COMPANY_DATA.clients.find(cl => cl.id === id);
     if (!c) return;
 
     let info = c.name;
@@ -1119,8 +1143,8 @@ function fillClientFromPicker() {
     if (c.email) info += '\n' + c.email;
     if (c.phone) info += '\n' + c.phone;
 
-    APP_DATA.currentInvoice.client = info;
-    APP_DATA.currentInvoice.clientId = id;
+    COMPANY_DATA.currentInvoice.client = info;
+    COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
     saveAppData();
     showToast('👤 ' + c.name);
@@ -1169,23 +1193,35 @@ function saveCompany() {
     }
 
     const isFirstCompany = !editId && APP_DATA.companies.length === 1;
+    const previousCompanyId = APP_DATA.currentCompanyId;
 
-    APP_DATA.currentCompanyId = company.id;
-
-    // For new company, create fresh invoice with proper num/date
     if (!editId) {
-        APP_DATA.currentInvoice = {
-            companyId: company.id,
-            num: generateInvoiceNumber(),
-            date: getCurrentDate(),
-            client: '',
-            clientId: '',
-            vatRate: 21,
-            vatText: '',
-            items: [{ desc: '', qty: 1, price: 0 }]
+        // New company: save current company's data first, then reset COMPANY_DATA
+        saveCompanyData();
+        APP_DATA.currentCompanyId = company.id;
+        COMPANY_DATA = {
+            invoices: [],
+            clients: [],
+            currentInvoice: {
+                num: '',
+                date: getCurrentDate(),
+                client: '',
+                clientId: '',
+                vatRate: 21,
+                vatText: '',
+                items: [{ desc: '', qty: 1, price: 0 }]
+            }
         };
+        COMPANY_DATA.currentInvoice.num = generateInvoiceNumber();
+    } else if (editId !== previousCompanyId) {
+        // Editing a different (non-active) company:
+        // save current active company's data first, then load the edited company's data
+        saveCompanyData();
+        APP_DATA.currentCompanyId = company.id;
+        loadCompanyData(company.id);
     } else {
-        APP_DATA.currentInvoice.companyId = company.id;
+        // Editing the currently active company — just update currentCompanyId (same)
+        APP_DATA.currentCompanyId = company.id;
     }
 
     saveAppData();
@@ -1323,9 +1359,32 @@ function deleteCompany(id) {
         APP_DATA.companies = APP_DATA.companies.filter(company => company.id !== id);
 
         if (APP_DATA.currentCompanyId === id) {
+            // Also remove this company's storage
+            localStorage.removeItem(getCompanyStorageKey(id));
             APP_DATA.currentCompanyId = APP_DATA.companies[0]?.id || '';
-            APP_DATA.currentInvoice.companyId = APP_DATA.currentCompanyId;
-            APP_DATA.currentInvoice.client = '';
+
+            if (APP_DATA.currentCompanyId) {
+                loadCompanyData(APP_DATA.currentCompanyId);
+                const newCo = getCurrentCompany();
+                currentLang = newCo?.lang || 'en';
+            } else {
+                COMPANY_DATA = {
+                    invoices: [],
+                    clients: [],
+                    currentInvoice: {
+                        num: '',
+                        date: '',
+                        client: '',
+                        clientId: '',
+                        vatRate: 21,
+                        vatText: '',
+                        items: [{ desc: '', qty: 1, price: 0 }]
+                    }
+                };
+            }
+        } else {
+            // Just remove storage for deleted company
+            localStorage.removeItem(getCompanyStorageKey(id));
         }
 
         saveAppData();
@@ -1341,34 +1400,25 @@ function deleteCompany(id) {
 }
 
 function switchCompany(id) {
-    if (!id) return;
+    if (!id || id === APP_DATA.currentCompanyId) return;
 
     const company = APP_DATA.companies.find(c => c.id === id);
     if (!company) return;
 
-    APP_DATA.currentCompanyId = id;
+    // Save current company data (including any unsaved form changes)
+    saveAllData();
 
-    // Load company language
+    // Switch
+    APP_DATA.currentCompanyId = id;
+    saveGlobalData();
+
+    // Load new company's data
+    loadCompanyData(id);
+
+    // Apply this company's language
     currentLang = company.lang || 'en';
 
-    // Restore this company's draft invoice if exists, else create new
-    const draft = APP_DATA.invoices.find(inv => inv.companyId === id && inv._isDraft);
-    if (draft) {
-        APP_DATA.currentInvoice = JSON.parse(JSON.stringify(draft));
-    } else {
-        APP_DATA.currentInvoice = {
-            companyId: id,
-            num: generateInvoiceNumber(),
-            date: getCurrentDate(),
-            client: '',
-            clientId: '',
-            vatRate: 21,
-            vatText: '',
-            items: [{ desc: '', qty: 1, price: 0 }]
-        };
-    }
-
-    saveAppData();
+    // Refresh everything
     refreshNavCompanyPicker();
     renderInvoiceForm();
     renderClients();
@@ -1377,7 +1427,7 @@ function switchCompany(id) {
     applyLang();
     showPage('invoice');
 
-    showToast('🏢 ' + (company.name || 'Company') + ' selected');
+    showToast('🏢 ' + (company.name || 'Company'));
 }
 
 function refreshNavCompanyPicker() {
@@ -1433,8 +1483,7 @@ function getLogoMarkup(logoKey) {
 function generateInvoiceNumber() {
     const year = new Date().getFullYear();
 
-    const lastNums = (APP_DATA.invoices || [])
-        .filter(i => i.companyId === APP_DATA.currentCompanyId)
+    const lastNums = (COMPANY_DATA.invoices || [])
         .map(i => i.num)
         .filter(n => n && n.startsWith(year + '-'))
         .map(n => parseInt(n.split('-')[1]) || 0);
