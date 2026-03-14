@@ -1279,46 +1279,49 @@ function buildPDFFromInvoice(inv) {
     const L = LANG[currentLang] || LANG.en;
     const co = APP_DATA.companies.find(c => c.id === inv.companyId) || getCurrentCompany() || createEmptyCompany();
 
-    // ── HEADER BACKGROUND ──
-    doc.setFillColor(13, 61, 122);
-    doc.rect(0, 0, W, 54, 'F');
+    // ── HEADER: measure info lines to set correct height ──
+    const infoLines = [co.reg, co.addr, co.phone, co.email, co.website].filter(Boolean);
+    const headerH = 18 + infoLines.length * 5 + 4; // name(14) + lines + padding
 
-    // Company name
+    doc.setFillColor(13, 61, 122);
+    doc.rect(0, 0, W, headerH, 'F');
+
+    // Left: Company name
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text(co.name || '', margin, 14);
+    doc.setFontSize(16);
+    doc.text(co.name || '', margin, 13);
 
-    // Company info (reg | addr | phone | email | website) — wrapped if needed
-    const infoLine = [co.reg, co.addr, co.phone, co.email, co.website].filter(Boolean).join('  |  ');
-    doc.setFontSize(7.5);
+    // Left: Info lines (each on own line)
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(180, 210, 255);
-    if (infoLine) {
-        const infoWrapped = doc.splitTextToSize(infoLine, 130);
-        doc.text(infoWrapped, margin, 21);
-    }
+    infoLines.forEach((line, i) => {
+        doc.text(line, margin, 20 + i * 5);
+    });
 
-    // INVOICE word (top right)
-    doc.setFontSize(30);
+    // Right: INVOICE word — vertically centered in header
+    doc.setFontSize(26);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text(L.invoiceWord, W - margin, 22, { align: 'right' });
+    doc.text(L.invoiceWord, W - margin, 14, { align: 'right' });
 
-    // Invoice # and Date under INVOICE word
+    // Right: Invoice # and Date
     doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(200, 225, 255);
-    doc.text(`${L.invoiceNum}  ${inv.num || ''}`, W - margin, 31, { align: 'right' });
-    doc.text(`${L.date}:  ${inv.date || ''}`, W - margin, 38, { align: 'right' });
+    doc.text(`${L.invoiceNum}  ${inv.num || ''}`, W - margin, 23, { align: 'right' });
+    doc.text(`${L.date}:  ${inv.date || ''}`, W - margin, 30, { align: 'right' });
 
     // ── BILLED TO + INVOICE DETAILS (two columns) ──
-    const boxY = 58;
+    const boxY = headerH + 4;
     const colW = (W - margin * 2) / 2 - 3;
 
     // LEFT — Billed To
+    const clientLines = (inv.client || '').split('\n').filter(Boolean).slice(0, 6);
+    const billedBoxH = Math.max(28, 12 + clientLines.length * 5.5);
     doc.setFillColor(245, 248, 255);
-    doc.roundedRect(margin, boxY, colW, 34, 3, 3, 'F');
+    doc.roundedRect(margin, boxY, colW, billedBoxH, 3, 3, 'F');
     doc.setTextColor(13, 61, 122);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
@@ -1326,7 +1329,6 @@ function buildPDFFromInvoice(inv) {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(20, 20, 20);
     doc.setFontSize(8.5);
-    const clientLines = (inv.client || '').split('\n').filter(Boolean).slice(0, 6);
     if (clientLines.length) {
         doc.text(clientLines, margin + 4, boxY + 12, { lineHeightFactor: 1.5 });
     }
@@ -1335,11 +1337,11 @@ function buildPDFFromInvoice(inv) {
     const rightX = margin + colW + 6;
     const rightW = W - margin - rightX;
     doc.setFillColor(245, 248, 255);
-    doc.roundedRect(rightX, boxY, rightW, 34, 3, 3, 'F');
+    doc.roundedRect(rightX, boxY, rightW, billedBoxH, 3, 3, 'F');
     doc.setTextColor(13, 61, 122);
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(L.invoiceDetails ? L.invoiceDetails.toUpperCase() : 'INVOICE DETAILS', rightX + 4, boxY + 6);
+    doc.text((L.invoiceDetails || 'Invoice Details').toUpperCase(), rightX + 4, boxY + 6);
     doc.setFontSize(9);
     doc.text(L.invoiceNum, rightX + 4, boxY + 15);
     doc.text(L.date, rightX + 4, boxY + 23);
@@ -1349,7 +1351,7 @@ function buildPDFFromInvoice(inv) {
     doc.text(inv.date || '', rightX + rightW - 4, boxY + 23, { align: 'right' });
 
     // ── ITEMS TABLE ──
-    let y = boxY + 40;
+    let y = boxY + billedBoxH + 4;
 
     doc.setFillColor(13, 61, 122);
     doc.rect(margin, y, W - margin * 2, 9, 'F');
