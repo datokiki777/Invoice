@@ -463,14 +463,58 @@
     </div>
 </div>
 
-<!-- Update Banner -->
+<!-- Update Banner (top strip, manual only) -->
 <div class="update-banner" id="update-banner">
     <div class="update-banner-text">
-        <strong>🔄 Update ready!</strong>
-        <span>A new version has been downloaded</span>
+        <span>🔄 New version ready</span>
     </div>
-    <button class="update-btn" onclick="applyUpdate()">Update now</button>
+    <button class="update-btn" onclick="applyUpdate()">Update</button>
     <button class="update-dismiss" onclick="dismissUpdate()">✕</button>
+</div>
+
+<!-- Android Install Bottom Sheet -->
+<div class="install-sheet-overlay" id="install-sheet-overlay" onclick="dismissInstallSheet()"></div>
+<div class="install-sheet" id="install-sheet">
+    <div class="install-sheet-handle"></div>
+    <div class="install-sheet-body">
+        <div class="install-sheet-icon">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="56" height="56">
+                <rect x="6" y="6" width="88" height="88" rx="20" fill="#0d3d7a"/>
+                <path d="M25 35 L50 20 L75 35 L50 50 Z" fill="white"/>
+                <path d="M25 50 L50 65 L75 50 L50 35 Z" fill="rgba(255,255,255,0.7)"/>
+                <path d="M25 65 L50 80 L75 65 L50 50 Z" fill="white"/>
+                <circle cx="50" cy="50" r="6" fill="#0d3d7a"/>
+            </svg>
+        </div>
+        <div class="install-sheet-info">
+            <h3>Install Invoice</h3>
+            <p>Add to home screen for fast access and offline use</p>
+        </div>
+    </div>
+    <div class="install-sheet-actions">
+        <button class="btn" style="background:#f0f0f0;color:#333;flex:1;" onclick="dismissInstallSheet()">Not now</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="triggerAndroidInstall()">📲 Install</button>
+    </div>
+</div>
+
+<!-- Logo Unlock Modal -->
+<div class="modal-overlay" id="logo-unlock-overlay">
+    <div class="modal">
+        <h3>🔓 Unlock Your Logo</h3>
+        <p style="color:#666;font-size:14px;margin-bottom:12px;">Enter the unlock code to access Your Logo:</p>
+        <input
+            type="password"
+            id="logo-unlock-input"
+            class="form-input"
+            placeholder="Enter code..."
+            style="width:100%;margin-bottom:16px;font-size:18px;letter-spacing:4px;text-align:center;"
+            onkeydown="if(event.key==='Enter') closeLogoUnlockModal(true)"
+        >
+        <div class="modal-actions">
+            <button class="btn" style="background:#eee;color:#333;" onclick="closeLogoUnlockModal(false)">Cancel</button>
+            <button class="btn btn-primary" onclick="closeLogoUnlockModal(true)">OK</button>
+        </div>
+    </div>
 </div>
 
 <script src="app.js"></script>
