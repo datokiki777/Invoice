@@ -366,8 +366,21 @@ function loadAppData() {
 
     ensureCurrentCompany();
 
-    if (
-        !APP_DATA.currentInvoice.items ||
+    // Ensure currentInvoice always exists
+    if (!APP_DATA.currentInvoice) {
+        APP_DATA.currentInvoice = {
+            companyId: APP_DATA.currentCompanyId || '',
+            num: '',
+            date: '',
+            client: '',
+            clientId: '',
+            vatRate: 21,
+            vatText: '',
+            items: [{ desc: '', qty: 1, price: 0 }]
+        };
+    }
+
+    if (!APP_DATA.currentInvoice.items ||
         !Array.isArray(APP_DATA.currentInvoice.items) ||
         APP_DATA.currentInvoice.items.length === 0
     ) {
@@ -608,23 +621,6 @@ window.onload = function () {
     }
 };
 
-    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-    if (modalConfirmBtn) {
-        modalConfirmBtn.onclick = function () {
-            const cb = modalCallback;
-            closeModal();
-            if (cb) cb();
-        };
-    }
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    if (modalOverlay) {
-        modalOverlay.addEventListener('click', function (e) {
-            if (e.target === this) closeModal();
-        });
-    }
-};
-
 // =========================================
 // PAGE NAVIGATION
 // =========================================
@@ -673,11 +669,22 @@ function renderInvoiceForm() {
     renderItemRows();
     calculateAll();
 
-    // Logo — try image, fallback to inline SVG
+    // Logo
     const logoPath = getLogoPath(co);
     const logoWrap = document.getElementById('logo-wrap');
     if (logoWrap) {
-        logoWrap.innerHTML = `<img id="company-logo" src="${logoPath}" alt="Logo" onerror="document.getElementById('logo-wrap').innerHTML='<svg viewBox=\\'0 0 100 100\\' xmlns=\\'http://www.w3.org/2000/svg\\'><rect x=\\'6\\' y=\\'6\\' width=\\'88\\' height=\\'88\\' rx=\\'15\\' fill=\\'rgba(255,255,255,0.15)\\'/><path d=\\'M25 35 L50 20 L75 35 L50 50 Z\\' fill=\\'white\\'/><path d=\\'M25 50 L50 65 L75 50 L50 35 Z\\' fill=\\'rgba(255,255,255,0.7)\\'/><path d=\\'M25 65 L50 80 L75 65 L50 50 Z\\' fill=\\'white\\'/></svg>'">`;
+        const img = document.createElement('img');
+        img.id = 'company-logo';
+        img.alt = 'Logo';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        img.onerror = function() {
+            logoWrap.innerHTML = getNeutralLogoSVG();
+        };
+        img.src = logoPath;
+        logoWrap.innerHTML = '';
+        logoWrap.appendChild(img);
     }
 
     // Restore client picker to saved selection

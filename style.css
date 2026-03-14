@@ -218,8 +218,10 @@ body {
     font-size: 13px;
     padding: 3px 6px;
     border-radius: 6px;
-    width: 280px;
+    width: 100%;
+    max-width: 280px;
     transition: all 0.2s;
+    min-width: 0;
 }
 
 .inv-input:focus {
@@ -232,7 +234,8 @@ body {
     font-size: 22px;
     font-weight: 700;
     color: white;
-    width: 300px;
+    width: 100%;
+    max-width: 300px;
     margin-bottom: 4px;
 }
 
@@ -264,7 +267,9 @@ body {
 }
 
 .meta-right {
-    padding: 20px 28px;
+    padding: 20px 14px;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .meta-label {
@@ -348,7 +353,9 @@ body {
     padding: 4px 8px;
     font-family: 'DM Sans', sans-serif;
     font-size: 13.5px;
-    width: 155px;
+    width: 100%;
+    max-width: 155px;
+    min-width: 0;
     color: var(--text);
     font-weight: 600;
 }
@@ -1250,27 +1257,53 @@ textarea.form-input {
 
     .inv-header {
         grid-template-columns: 1fr auto;
-        padding: 16px 14px;
+        padding: 14px 12px;
+        gap: 8px;
+        align-items: start;
+    }
+
+    .company-block {
         gap: 10px;
+        min-width: 0;
+    }
+
+    .logo-svg {
+        width: 52px;
+        height: 52px;
+        flex-shrink: 0;
+    }
+
+    .logo-svg svg {
+        width: 52px;
+        height: 52px;
+    }
+
+    .company-fields {
+        min-width: 0;
+        overflow: hidden;
     }
 
     .invoice-title-block {
         text-align: right;
         align-self: start;
+        flex-shrink: 0;
     }
 
     .invoice-word {
-        font-size: 32px;
+        font-size: 26px;
+        letter-spacing: 1px;
     }
 
     .inv-input.company-name {
-        font-size: 15px;
+        font-size: 14px;
         width: 100%;
+        max-width: 100%;
     }
 
     .inv-input {
         width: 100%;
-        font-size: 12px;
+        max-width: 100%;
+        font-size: 11px;
     }
 
     .inv-meta {
@@ -1280,11 +1313,27 @@ textarea.form-input {
     .meta-left {
         border-right: 1px solid var(--border);
         border-bottom: none;
-        padding: 14px 12px;
+        padding: 12px 10px;
+        min-width: 0;
     }
 
     .meta-right {
-        padding: 14px 12px;
+        padding: 12px 8px;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .meta-detail-row {
+        gap: 4px;
+        font-size: 12px;
+    }
+
+    .meta-text-input {
+        font-size: 12px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: 4px 4px;
     }
 
     .inv-footer-grid {
