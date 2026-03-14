@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v1.1.3';
+const CACHE_NAME = 'invoice-pwa-v1.0.2';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +13,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting();
+  // Do NOT call self.skipWaiting() here — wait for user to confirm update
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
