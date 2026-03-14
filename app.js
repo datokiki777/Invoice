@@ -190,7 +190,7 @@ function unlockYourLogoManually() {
     const code = window.prompt('Enter code to unlock Your Logo:');
     if (!code) return;
 
-    const ok = unlockOwnerLogo(code);
+    const ok = unlockOwnerLogo(369700);
 
     if (ok) {
         refreshOwnerLogoOptionText();
