@@ -111,7 +111,7 @@ function ensureCurrentCompany() {
 // OWNER LOGO LOCK
 // =========================================
 const OWNER_LOGO_UNLOCK_KEY = 'invoice_owner_logo_unlocked';
-const OWNER_LOGO_CODE = '2580';
+const OWNER_LOGO_CODE = '369700';
 
 function isOwnerLogoUnlocked() {
     return localStorage.getItem(OWNER_LOGO_UNLOCK_KEY) === 'yes';
@@ -190,7 +190,7 @@ function unlockYourLogoManually() {
     const code = window.prompt('Enter code to unlock Your Logo:');
     if (!code) return;
 
-    const ok = unlockOwnerLogo(369700);
+    const ok = unlockOwnerLogo(code);
 
     if (ok) {
         refreshOwnerLogoOptionText();
