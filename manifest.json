@@ -1,12 +1,14 @@
 {
-  "name": "D-BUILDER Invoice",
-  "short_name": "D-Invoice",
-  "description": "D-BUILDER Professional Invoice Manager",
+  "name": "Invoice",
+  "short_name": "INV",
+  "description": "Invoice generator with companies, clients and PDF export.",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0d3d7a",
-  "theme_color": "#0d3d7a",
   "orientation": "portrait-primary",
+  "background_color": "#eef1f7",
+  "theme_color": "#0d3d7a",
   "icons": [
     {
       "src": "icons/icon-192.png",
