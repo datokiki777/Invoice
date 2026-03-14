@@ -355,11 +355,13 @@ function triggerAndroidInstall() {
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
+
     deferredPrompt.userChoice.then(choice => {
         if (choice.outcome === 'accepted') {
             showToast('✅ App installed!');
         }
         deferredPrompt = null;
+        hideInstallUI();
     });
 }
 
@@ -370,6 +372,38 @@ function isIOS() {
 function isInStandaloneMode() {
     return window.navigator.standalone === true ||
         window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function showInstallUI() {
+    if (isInStandaloneMode()) return;
+
+    if (isIOS()) {
+        if (!sessionStorage.getItem('ios_banner_dismissed')) {
+            const banner = document.getElementById('ios-banner');
+            if (banner) banner.classList.add('show');
+        }
+        return;
+    }
+
+    if (deferredPrompt) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+
+        toast.innerHTML = '📲 Install this app on your home screen! <button onclick="triggerAndroidInstall()" style="background:var(--secondary);color:var(--primary);border:none;border-radius:12px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px;">Install</button>';
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 7000);
+    }
+}
+
+function hideInstallUI() {
+    const toast = document.getElementById('toast');
+    if (toast) toast.classList.remove('show');
+
+    const banner = document.getElementById('ios-banner');
+    if (banner) banner.classList.remove('show');
 }
 
 function dismissIOSBanner() {
@@ -383,54 +417,56 @@ function showUpdateBanner() {
     if (banner) banner.classList.add('show');
 }
 
-function applyUpdate() {
-    dismissUpdate();
-    if (swRegistration && swRegistration.waiting) {
-        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    }
-}
-
 function dismissUpdate() {
     const banner = document.getElementById('update-banner');
     if (banner) banner.classList.remove('show');
 }
 
-function showAndroidInstallToast() {
-    if (!deferredPrompt) return;
+function applyUpdate() {
+    dismissUpdate();
 
-    const t = document.getElementById('toast');
-    if (!t) return;
-
-    t.innerHTML = '📲 Install this app on your home screen! <button onclick="triggerAndroidInstall()" style="background:var(--secondary);color:var(--primary);border:none;border-radius:12px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px;">Install</button>';
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 7000);
+    if (swRegistration && swRegistration.waiting) {
+        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+        window.location.reload();
+    }
 }
 
 function initPWA() {
-    window.addEventListener('beforeinstallprompt', e => {
-        e.preventDefault();
-        deferredPrompt = e;
+    window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        deferredPrompt = event;
 
-        if (!sessionStorage.getItem('install_dismissed')) {
-            setTimeout(() => showAndroidInstallToast(), 1500);
+        if (!sessionStorage.getItem('install_prompt_seen')) {
+            sessionStorage.setItem('install_prompt_seen', '1');
+            setTimeout(() => {
+                showInstallUI();
+            }, 1200);
         }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        deferredPrompt = null;
+        hideInstallUI();
+        showToast('✅ App installed!');
     });
 
     if (isIOS() && !isInStandaloneMode() && !sessionStorage.getItem('ios_banner_dismissed')) {
         setTimeout(() => {
-            const banner = document.getElementById('ios-banner');
-            if (banner) banner.classList.add('show');
-        }, 1800);
+            showInstallUI();
+        }, 1400);
     }
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
-            swRegistration = reg;
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+            swRegistration = registration;
 
-            if (reg.waiting) showUpdateBanner();
+            if (registration.waiting) {
+                showUpdateBanner();
+            }
 
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
                 if (!newWorker) return;
 
                 newWorker.addEventListener('statechange', () => {
@@ -439,14 +475,17 @@ function initPWA() {
                     }
                 });
             });
-        }).catch(() => {});
+
+            registration.update().catch(() => {});
+        }).catch(error => {
+            console.error('SW registration failed:', error);
+        });
 
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!refreshing) {
-                refreshing = true;
-                window.location.reload();
-            }
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
         });
     }
 }
