@@ -1,5 +1,5 @@
-const CACHE_NAME = 'invoice-pwa-v2.1.5';
-const ASSETS = [
+const CACHE_NAME = 'invoice-pwa-v1.0.5';
+const APP_SHELL = [
   './',
   './index.html',
   './style.css',
@@ -9,13 +9,14 @@ const ASSETS = [
   './icons/icon-512.png'
 ];
 
+// Install: preload app shell
 self.addEventListener('install', event => {
-  // Do NOT call self.skipWaiting() here — wait for user to confirm update
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
 });
 
+// Activate: remove old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     Promise.all([
@@ -31,24 +32,61 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Helpers
+function isAppShellRequest(request) {
+  const url = new URL(request.url);
+
+  return (
+    request.mode === 'navigate' ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/style.css') ||
+    url.pathname.endsWith('/app.js') ||
+    url.pathname.endsWith('/manifest.json')
+  );
+}
+
+function isCacheableRequest(request) {
+  return request.method === 'GET' && request.url.startsWith(self.location.origin);
+}
+
+// Fetch strategy:
+// - HTML/CSS/JS/manifest => network first
+// - icons/static same-origin files => cache first
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
+
+  if (!isCacheableRequest(request)) return;
+
+  if (isAppShellRequest(request)) {
+    event.respondWith(
+      fetch(request)
+        .then(networkResponse => {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || caches.match('./index.html');
+        })
+    );
+    return;
+  }
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
+    caches.match(request).then(cached => {
       if (cached) return cached;
 
-      return fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'));
+      return fetch(request).then(networkResponse => {
+        const copy = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        return networkResponse;
+      });
     })
   );
 });
 
+// Allow app to activate waiting SW after user confirms update
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
