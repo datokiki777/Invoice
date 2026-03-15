@@ -105,10 +105,17 @@ body {
 }
 
 .nav-tab.active {
-    background: rgba(255,255,255,0.22);
-    color: white;
-    border-color: rgba(255,255,255,0.24);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.10);
+    background: #e8b73c;
+    color: #0d3d7a;
+    border-color: rgba(232, 183, 60, 0.55);
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+.nav-tab.active span,
+.nav-tab.active {
+    font-weight: 800;
 }
 
 .lang-toggle {
@@ -660,13 +667,6 @@ body {
     border-bottom: 2px solid var(--primary);
 }
 
-.bank-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding-right: 78px;
-}
-
 .bank-card-content {
     display: flex;
     flex-direction: column;
@@ -705,25 +705,6 @@ body {
     outline: none;
     border-color: var(--primary);
     background: #fffbea;
-}
-
-.bank-icon-wrap {
-    position: absolute;
-    right: 14px;
-    bottom: 14px;
-    width: 54px;
-    height: 54px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    opacity: 0.95;
-}
-
-.bank-icon {
-    width: 48px;
-    height: 48px;
-    display: block;
-    filter: drop-shadow(0 2px 4px rgba(13,61,122,0.14));
 }
 
 .terms-card {
@@ -1478,31 +1459,19 @@ textarea.form-input {
 }
 
 .bank-row strong {
-    min-width: 50px !important;
+    min-width: 54px !important;
     font-size: 10px !important;
     font-weight: 800 !important;
     color: #0d3d7a !important;
+    letter-spacing: 0.2px !important;
 }
 
 .bank-input {
     padding: 0 !important;
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    color: #0f2747 !important;
-    line-height: 1.22 !important;
-}
-
-.bank-icon-wrap {
-    width: 18px !important;
-    height: 18px !important;
-    right: 6px !important;
-    bottom: 6px !important;
-    opacity: 0.55 !important;
-}
-
-.bank-icon {
-    width: 14px !important;
-    height: 14px !important;
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    color: #102a4c !important;
+    line-height: 1.2 !important;
 }
 
 .terms-card {
@@ -1761,7 +1730,7 @@ textarea.form-input {
 }
 
 .bank-card {
-    padding-right: 30px !important;
+    padding-right: 10px !important;
     padding-bottom: 12px !important;
 }
 
