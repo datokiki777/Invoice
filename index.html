@@ -16,6 +16,7 @@
 <body>
 
 <!-- TOP NAV -->
+
 <nav class="top-nav">
     <div class="top-nav-right" style="width:100%">
         <select class="nav-company-select" id="nav_company_picker" onchange="switchCompany(this.value)" title="Active company">
@@ -42,6 +43,7 @@
 </nav>
 
 <!-- INVOICE PAGE -->
+
 <div class="page active" id="page-invoice">
 
     <div class="status-bar no-print">
@@ -56,6 +58,7 @@
     <div class="inv-card">
 
         <!-- Header -->
+        
         <div class="inv-header">
             <div class="company-block">
                 <div class="logo-svg" id="logo-wrap">
@@ -78,9 +81,10 @@
         </div>
 
         <!-- Meta -->
+        
         <div class="inv-meta">
             <div class="meta-left">
-                <div class="meta-label">Billed To</div>
+                <div class="meta-label">Bill To</div>
                 <div class="client-select-row no-print">
                     <select class="client-select" id="client_picker" onchange="fillClientFromPicker()">
                         <option value="">— Select a client —</option>
@@ -106,6 +110,7 @@
         </div>
 
         <!-- Items -->
+        
         <div class="items-section">
             <table class="items-table">
                 <thead>
@@ -127,6 +132,7 @@
         </div>
 
         <!-- Summary -->
+        
         <div class="inv-summary">
             <div class="summary-box">
                 <div class="summary-line subtotal">
@@ -152,40 +158,50 @@
         </div>
 
         <!-- Footer -->
-        <div class="inv-footer-grid">
-            <div class="footer-col">
-                <div class="footer-title">Bank Details</div>
+        
+<div class="inv-footer-grid">
 
-                <div class="bank-row">
-                    <strong>Recipient</strong>
-                    <input type="text" class="bank-input" id="bank_recip" oninput="saveAllData()" value="">
-                </div>
+    <div class="footer-card bank-card">
+        <div class="footer-title">Bank Details</div>
 
-                <div class="bank-row">
-                    <strong>Bank</strong>
-                    <input type="text" class="bank-input" id="bank_name" oninput="saveAllData()" value="">
-                </div>
-
-                <div class="bank-row">
-                    <strong>IBAN</strong>
-                    <input type="text" class="bank-input" id="bank_iban" oninput="saveAllData()" value="">
-                </div>
-
-                <div class="bank-row">
-                    <strong>BIC</strong>
-                    <input type="text" class="bank-input" id="bank_bic" oninput="saveAllData()" value="">
-                </div>
+        <div class="bank-card-content">
+            <div class="bank-row">
+                <strong>Recipient</strong>
+                <input type="text" class="bank-input" id="bank_recip" oninput="saveAllData()" value="">
             </div>
 
-            <div class="footer-col">
-                <div class="footer-title">Terms</div>
-                <p class="terms-text">Payment due within 7 days of invoice date.<br>Thank you for your business!</p>
+            <div class="bank-row">
+                <strong>Bank</strong>
+                <input type="text" class="bank-input" id="bank_name" oninput="saveAllData()" value="">
+            </div>
+
+            <div class="bank-row">
+                <strong>IBAN</strong>
+                <input type="text" class="bank-input" id="bank_iban" oninput="saveAllData()" value="">
+            </div>
+
+            <div class="bank-row">
+                <strong>BIC</strong>
+                <input type="text" class="bank-input" id="bank_bic" oninput="saveAllData()" value="">
             </div>
         </div>
 
+        <div class="bank-icon-wrap" aria-hidden="true">
+            <img src="icons/bank.svg" class="bank-icon" alt="Bank">
+        </div>
     </div>
 
+    <div class="footer-card terms-card">
+        <div class="footer-title">Terms</div>
+        <p class="terms-text">Payment due within 7 days of invoice date.<br>Thank you for your business!
+    </p>
+      </div>
+      
+    </div>
+  </div>
+
     <!-- Action Buttons -->
+    
     <div class="action-bar no-print">
         <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
         <button class="btn btn-success" onclick="saveInvoiceToHistory()">💾 Save</button>
@@ -196,6 +212,7 @@
 </div>
 
 <!-- HISTORY PAGE -->
+
 <div class="page" id="page-history">
     <div class="page-header">
         <div>
@@ -214,6 +231,7 @@
 </div>
 
 <!-- CLIENTS PAGE -->
+
 <div class="page" id="page-clients">
     <div class="page-header">
         <div>
@@ -277,6 +295,7 @@
 </div>
 
 <!-- COMPANIES PAGE -->
+
 <div class="page" id="page-companies">
     <div class="page-header">
         <div>
@@ -380,9 +399,11 @@
 </div>
 
 <!-- Toast -->
+
 <div class="toast" id="toast"></div>
 
 <!-- Confirm Modal -->
+
 <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
         <h3 id="modal-title">Confirm</h3>
@@ -395,6 +416,7 @@
 </div>
 
 <!-- iOS Install Banner -->
+
 <div class="ios-banner" id="ios-banner">
     <button class="ios-banner-close" onclick="dismissIOSBanner()">✕</button>
     <div class="ios-banner-top">
@@ -447,6 +469,7 @@
 </div>
 
 <!-- Update Banner (top strip, manual only) -->
+
 <div class="update-banner" id="update-banner">
     <div class="update-banner-text">
         <span>🔄 New version ready</span>
@@ -456,6 +479,7 @@
 </div>
 
 <!-- Android Install Bottom Sheet -->
+
 <div class="install-sheet-overlay" id="install-sheet-overlay" onclick="dismissInstallSheet()"></div>
 <div class="install-sheet" id="install-sheet">
     <div class="install-sheet-handle"></div>
@@ -481,6 +505,7 @@
 </div>
 
 <!-- Logo Unlock Modal -->
+
 <div class="modal-overlay" id="logo-unlock-overlay">
     <div class="modal">
         <h3>🔓 Unlock Your Logo</h3>

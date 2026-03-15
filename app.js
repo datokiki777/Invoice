@@ -153,26 +153,25 @@ function ensureLogoAccess(selectedLogoKey) {
     if (selectedLogoKey !== 'owner') return selectedLogoKey;
     if (isOwnerLogoUnlocked()) return 'owner';
 
-    // Revert to shared1 while waiting for modal input
     const select = document.getElementById('new_company_logo');
     if (select) select.value = 'shared1';
     refreshOwnerLogoOptionText();
 
     showLogoUnlockModal(function(code) {
         if (!code) return;
+
         const ok = unlockOwnerLogo(code);
+
         if (ok) {
             refreshOwnerLogoOptionText();
             refreshLogoHelpText();
             refreshUnlockLogoButton();
             showToast('🔓 Your Logo unlocked');
-            // Auto-select owner logo after unlock
+
+            // only change the form select, do NOT change current company automatically
             const sel = document.getElementById('new_company_logo');
             if (sel) {
                 sel.value = 'owner';
-                // Trigger save if needed
-                const co = getCurrentCompany();
-                if (co) { co.logoKey = 'owner'; saveAppData(); renderInvoiceForm(); }
             }
         } else {
             showToast('❌ Wrong code');
@@ -735,10 +734,11 @@ function renderInvoiceForm() {
     }
 
     // Restore client picker to saved selection
-    if (ci.clientId) {
-        const picker = document.getElementById('client_picker');
-        if (picker) picker.value = ci.clientId;
-    }
+    
+    const picker = document.getElementById('client_picker');
+    if (picker) {
+    picker.value = ci.clientId || '';
+     }
 }
 
 function renderItemRows() {
@@ -858,23 +858,44 @@ function saveAllData() {
 // =========================================
 // INVOICE HISTORY
 // =========================================
+
 function saveInvoiceToHistory() {
     saveAllData();
 
     const inv = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
+    delete inv.savedAt;
     inv.savedAt = new Date().toISOString();
+
+    if (!inv.num || !inv.num.trim()) {
+        inv.num = generateInvoiceNumber();
+    }
 
     const existIdx = COMPANY_DATA.invoices.findIndex(i => i.num === inv.num);
 
     if (existIdx >= 0) {
         COMPANY_DATA.invoices[existIdx] = inv;
+        showToast('♻️ Invoice updated!');
     } else {
         COMPANY_DATA.invoices.unshift(inv);
+        showToast('✅ Invoice saved!');
     }
 
+    const nextNum = generateInvoiceNumber();
+
+    COMPANY_DATA.currentInvoice = {
+        num: nextNum,
+        date: getCurrentDate(),
+        client: '',
+        clientId: '',
+        vatRate: inv.vatRate || 21,
+        vatText: '',
+        items: [{ desc: '', qty: 1, price: 0 }]
+    };
+
     saveAppData();
-    showToast('✅ Invoice saved!');
+    renderInvoiceForm();
     renderHistory();
+    refreshClientPicker();
 }
 
 function renderHistory() {
@@ -926,7 +947,12 @@ function renderHistory() {
 }
 
 function loadInvoiceFromHistory(index) {
-    COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(COMPANY_DATA.invoices[index]));
+    const loaded = JSON.parse(JSON.stringify(COMPANY_DATA.invoices[index]));
+    if (!loaded) return;
+
+    delete loaded.savedAt;
+
+    COMPANY_DATA.currentInvoice = loaded;
 
     if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
         COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
@@ -951,10 +977,13 @@ function deleteInvoice(index) {
 // =========================================
 // NEW / CLEAR
 // =========================================
+
 function newInvoice() {
     confirmAction('New Invoice', 'Create a new invoice? Make sure current invoice is saved.', () => {
+        const nextNum = generateInvoiceNumber();
+
         COMPANY_DATA.currentInvoice = {
-            num: generateInvoiceNumber(),
+            num: nextNum,
             date: getCurrentDate(),
             client: '',
             clientId: '',
@@ -965,6 +994,7 @@ function newInvoice() {
 
         saveAppData();
         renderInvoiceForm();
+        refreshClientPicker();
         showToast('➕ New Invoice');
     });
 }
@@ -1434,7 +1464,7 @@ function refreshNavCompanyPicker() {
     (APP_DATA.companies || []).forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = (c.name || 'Untitled') + (c.lang === 'de' ? ' 🇩🇪' : ' 🇬🇧');
+        opt.textContent = c.name || 'Untitled';
         if (c.id === APP_DATA.currentCompanyId) opt.selected = true;
         sel.appendChild(opt);
     });
