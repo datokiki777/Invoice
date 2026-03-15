@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v1.5.0';
+const CACHE_NAME = 'invoice-pwa-v2.0.0';
 const ASSETS = [
   './',
   './index.html',
