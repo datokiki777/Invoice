@@ -42,10 +42,11 @@ const LOGO_SVG = {
         <circle cx="70" cy="32" r="7" fill="#ffc107"/>
     </svg>`,
     shared2: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <rect x="5" y="5" width="90" height="90" rx="18" fill="#ffffff"/>
-        <rect x="10" y="10" width="80" height="80" rx="16" fill="#0d3d7a"/>
-        <path d="M22 70 L40 35 L50 50 L60 30 L78 70 Z" fill="white"/>
-        <circle cx="70" cy="32" r="7" fill="#ffc107"/>
+        <rect x="2" y="2" width="96" height="96" rx="18" fill="rgba(255,255,255,0.15)"/>
+        <rect x="6" y="6" width="88" height="88" rx="15" fill="#0d3d7a"/>
+        <rect x="22" y="30" width="56" height="9" rx="4.5" fill="white"/>
+        <rect x="22" y="46" width="44" height="9" rx="4.5" fill="rgba(255,255,255,0.65)"/>
+        <rect x="22" y="62" width="50" height="9" rx="4.5" fill="white"/>
     </svg>`,
     shared3: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="2" width="96" height="96" rx="18" fill="rgba(255,255,255,0.15)"/>
@@ -54,7 +55,8 @@ const LOGO_SVG = {
         <path d="M25 50 L50 65 L75 50 L50 35 Z" fill="rgba(255,255,255,0.7)"/>
         <path d="M25 65 L50 80 L75 65 L50 50 Z" fill="white"/>
         <circle cx="50" cy="50" r="6" fill="#0d3d7a"/>
-    </svg>`
+    </svg>`,
+    none: ``
 };
 
 // =========================================
@@ -127,10 +129,8 @@ function ensureCurrentCompany() {
 }
 
 // =========================================
-// LOGO — thumbnail picker + file upload
+// LOGO — thumbnail picker (4 options)
 // =========================================
-
-let _pendingLogoData = null; // base64 data URL if custom image picked
 
 function ensureLogoAccess(k) { return k || 'shared1'; }
 function refreshOwnerLogoOptionText() {}
@@ -141,65 +141,30 @@ function refreshUnlockLogoButton() {
 }
 
 function selectLogoThumbnail(key) {
-    _pendingLogoData = null;
     const hi = document.getElementById('new_company_logo');
     if (hi) hi.value = key;
     _updateThumbSelection(key);
 }
 
-function handleLogoFilePick(input) {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        _pendingLogoData = e.target.result;
-        const hi = document.getElementById('new_company_logo');
-        if (hi) hi.value = 'custom';
-        const customThumb = document.getElementById('logo-thumb-custom');
-        if (customThumb) {
-            customThumb.style.fontSize = '0';
-            customThumb.innerHTML = `<img src="${_pendingLogoData}" style="width:100%;height:100%;object-fit:contain;display:block;">`;
-        }
-        _updateThumbSelection('custom');
-    };
-    reader.readAsDataURL(file);
-    input.value = '';
-}
-
 function _updateThumbSelection(activeKey) {
-    ['shared1', 'shared2', 'shared3', 'custom'].forEach(k => {
+    ['shared1', 'shared2', 'shared3', 'none'].forEach(k => {
         const el = document.getElementById('logo-thumb-' + k);
         if (!el) return;
         if (k === activeKey) {
             el.style.border = '2.5px solid #4c6ef5';
             el.style.background = '#eef2ff';
         } else {
-            el.style.border = k === 'custom' ? '2.5px dashed #cbd5e0' : '2.5px solid transparent';
+            el.style.border = '2.5px solid transparent';
             el.style.background = '#f0f4ff';
         }
     });
 }
 
 function initLogoFormForCompany(company) {
-    _pendingLogoData = null;
     const key = (company && company.logoKey) || 'shared1';
     const hi = document.getElementById('new_company_logo');
     if (hi) hi.value = key;
-
-    const customThumb = document.getElementById('logo-thumb-custom');
-    if (company && company.logoData) {
-        if (customThumb) {
-            customThumb.style.fontSize = '0';
-            customThumb.innerHTML = `<img src="${company.logoData}" style="width:100%;height:100%;object-fit:contain;display:block;">`;
-        }
-        _updateThumbSelection('custom');
-    } else {
-        if (customThumb) {
-            customThumb.style.fontSize = '22px';
-            customThumb.innerHTML = '📁';
-        }
-        _updateThumbSelection(key);
-    }
+    _updateThumbSelection(key);
 }
 
 // =========================================
@@ -639,12 +604,8 @@ function renderInvoiceForm() {
     // Logo
     const logoWrap = document.getElementById('logo-wrap');
     if (logoWrap) {
-        if (co.logoData) {
-            logoWrap.innerHTML = `<img id="company-logo" alt="Logo" src="${co.logoData}" style="width:100%;height:100%;object-fit:contain;">`;
-        } else {
-            const key = co.logoKey || 'shared1';
-            logoWrap.innerHTML = LOGO_SVG[key] || LOGO_SVG.shared1;
-        }
+        const key = co.logoKey || 'shared1';
+        logoWrap.innerHTML = key === 'none' ? '' : (LOGO_SVG[key] || LOGO_SVG.shared1);
     }
 
     // Restore client picker to saved selection
@@ -1120,17 +1081,8 @@ function saveCompany() {
 
     const editId = document.getElementById('edit_company_id').value;
 
-    const selectedLogoKey = (document.getElementById('new_company_logo').value) || 'shared1';
+    const selectedLogoKey = document.getElementById('new_company_logo').value || 'shared1';
     const existingCompany = editId ? APP_DATA.companies.find(c => c.id === editId) : null;
-
-    // Keep existing logoData unless a new image was picked, or user switched to a preset
-    let finalLogoData = null;
-    if (selectedLogoKey === 'custom') {
-        finalLogoData = _pendingLogoData !== null
-            ? _pendingLogoData
-            : (existingCompany ? existingCompany.logoData || null : null);
-    }
-    // For shared1/shared2, finalLogoData stays null
 
     const company = {
         id: editId || 'company_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
@@ -1145,7 +1097,6 @@ function saveCompany() {
         bankIban: document.getElementById('new_company_bank_iban').value.trim(),
         bankBic: document.getElementById('new_company_bank_bic').value.trim(),
         logoKey: selectedLogoKey,
-        logoData: finalLogoData,
         lang: existingCompany ? (existingCompany.lang || 'en') : 'en'
     };
 
@@ -1217,8 +1168,8 @@ function renderCompanies() {
         <div class="client-card current-company-card">
             <div class="client-name">${esc(currentCompany.name || 'Untitled Company')}</div>
             <div style="font-size:12px;color:#718096;margin-bottom:6px;">
-                ${currentCompany.logoData
-                    ? 'Logo: 🖼️ Custom'
+                ${currentCompany.logoKey === 'none'
+                    ? 'Logo: None'
                     : currentCompany.logoKey === 'shared3'
                     ? 'Logo: Shared 3'
                     : currentCompany.logoKey === 'shared2'
