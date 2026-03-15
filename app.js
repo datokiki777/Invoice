@@ -34,27 +34,26 @@ let COMPANY_DATA = {
 // LOGO PATHS / INLINE SVGs
 // ============================
 
-const LOGOS = {
-    owner: "icons/mylogo.svg",
-    shared1: null,  // inline
-    shared2: null   // inline
-};
-
 const LOGO_SVG = {
     shared1: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4" y="4" width="92" height="92" rx="18" fill="rgba(255,255,255,0.18)"/>
-        <rect x="8" y="8" width="84" height="84" rx="14" fill="#0d3d7a"/>
-        <path d="M25 35 L50 20 L75 35 L50 50 Z" fill="white"/>
-        <path d="M25 50 L50 65 L75 50 L50 35 Z" fill="rgba(255,255,255,0.65)"/>
-        <path d="M25 65 L50 80 L75 65 L50 50 Z" fill="white"/>
-        <circle cx="50" cy="50" r="6" fill="#0d3d7a"/>
+        <rect x="5" y="5" width="90" height="90" rx="18" fill="#ffffff"/>
+        <rect x="10" y="10" width="80" height="80" rx="16" fill="#0d3d7a"/>
+        <path d="M22 70 L40 35 L50 50 L60 30 L78 70 Z" fill="white"/>
+        <circle cx="70" cy="32" r="7" fill="#ffc107"/>
     </svg>`,
     shared2: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4" y="4" width="92" height="92" rx="18" fill="rgba(255,255,255,0.18)"/>
-        <rect x="8" y="8" width="84" height="84" rx="14" fill="#1a5cad"/>
-        <rect x="22" y="28" width="56" height="8" rx="4" fill="white"/>
-        <rect x="22" y="46" width="40" height="8" rx="4" fill="rgba(255,255,255,0.75)"/>
-        <rect x="22" y="64" width="48" height="8" rx="4" fill="white"/>
+        <rect x="5" y="5" width="90" height="90" rx="18" fill="#ffffff"/>
+        <rect x="10" y="10" width="80" height="80" rx="16" fill="#0d3d7a"/>
+        <path d="M22 70 L40 35 L50 50 L60 30 L78 70 Z" fill="white"/>
+        <circle cx="70" cy="32" r="7" fill="#ffc107"/>
+    </svg>`,
+    shared3: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="96" height="96" rx="18" fill="rgba(255,255,255,0.15)"/>
+        <rect x="6" y="6" width="88" height="88" rx="15" fill="#0d3d7a"/>
+        <path d="M25 35 L50 20 L75 35 L50 50 Z" fill="white"/>
+        <path d="M25 50 L50 65 L75 50 L50 35 Z" fill="rgba(255,255,255,0.7)"/>
+        <path d="M25 65 L50 80 L75 65 L50 50 Z" fill="white"/>
+        <circle cx="50" cy="50" r="6" fill="#0d3d7a"/>
     </svg>`
 };
 
@@ -63,11 +62,9 @@ const LOGO_SVG = {
 // =========================================
 
 function getLogoPath(company) {
-    if (!company) return LOGOS.shared1;
-
-    const key = company.logoKey || "shared1";
-
-    return LOGOS[key] || LOGOS.shared1;
+    if (!company) return LOGO_SVG.shared1;
+    const key = company.logoKey || 'shared1';
+    return LOGO_SVG[key] || LOGO_SVG.shared1;
 }
 
 function createEmptyCompany() {
@@ -130,152 +127,79 @@ function ensureCurrentCompany() {
 }
 
 // =========================================
-// OWNER LOGO LOCK
+// LOGO — thumbnail picker + file upload
 // =========================================
-const OWNER_LOGO_UNLOCK_KEY = 'invoice_owner_logo_unlocked';
-const OWNER_LOGO_CODE = '369700';
 
-function isOwnerLogoUnlocked() {
-    return localStorage.getItem(OWNER_LOGO_UNLOCK_KEY) === 'yes';
-}
+let _pendingLogoData = null; // base64 data URL if custom image picked
 
-function unlockOwnerLogo(code) {
-    if (String(code).trim() === OWNER_LOGO_CODE) {
-        localStorage.setItem(OWNER_LOGO_UNLOCK_KEY, 'yes');
-        refreshLogoHelpText();
-        refreshUnlockLogoButton();
-        return true;
-    }
-    return false;
-}
-
-function ensureLogoAccess(selectedLogoKey) {
-    if (selectedLogoKey !== 'owner') return selectedLogoKey;
-    if (isOwnerLogoUnlocked()) return 'owner';
-
-    const select = document.getElementById('new_company_logo');
-    if (select) select.value = 'shared1';
-    refreshOwnerLogoOptionText();
-
-    showLogoUnlockModal(function(code) {
-        if (!code) return;
-
-        const ok = unlockOwnerLogo(code);
-
-        if (ok) {
-            refreshOwnerLogoOptionText();
-            refreshLogoHelpText();
-            refreshUnlockLogoButton();
-            showToast('🔓 Your Logo unlocked');
-
-            // only change the form select, do NOT change current company automatically
-            const sel = document.getElementById('new_company_logo');
-            if (sel) {
-                sel.value = 'owner';
-            }
-        } else {
-            showToast('❌ Wrong code');
-        }
-    });
-
-    return 'shared1';
-}
-
-function refreshOwnerLogoOptionText() {
-    const select = document.getElementById('new_company_logo');
-    if (!select) return;
-
-    let ownerOption = select.querySelector('option[value="owner"]');
-
-    if (isOwnerLogoUnlocked()) {
-        if (!ownerOption) {
-            ownerOption = document.createElement('option');
-            ownerOption.value = 'owner';
-            select.appendChild(ownerOption);
-        }
-        ownerOption.textContent = '🔓 Your Logo';
-    } else {
-        if (ownerOption) {
-            if (select.value === 'owner') {
-                select.value = 'shared1';
-            }
-            ownerOption.remove();
-        }
-    }
-}
-
-function unlockYourLogoManually() {
-    if (isOwnerLogoUnlocked()) {
-        showToast('🔓 Your Logo already unlocked');
-        refreshOwnerLogoOptionText();
-        refreshLogoHelpText();
-        refreshUnlockLogoButton();
-        return;
-    }
-
-    showLogoUnlockModal(function(code) {
-        if (!code) return;
-        const ok = unlockOwnerLogo(code);
-        if (ok) {
-            refreshOwnerLogoOptionText();
-            refreshLogoHelpText();
-            refreshUnlockLogoButton();
-            showToast('🔓 Your Logo unlocked');
-        } else {
-            showToast('❌ Wrong code');
-        }
-    });
-}
-
-// =========================================
-// LOGO UNLOCK MODAL (custom, no browser prompt)
-// =========================================
-function showLogoUnlockModal(callback) {
-    const overlay = document.getElementById('logo-unlock-overlay');
-    const input = document.getElementById('logo-unlock-input');
-    if (!overlay || !input) return;
-
-    input.value = '';
-    overlay.classList.add('show');
-
-    // Store callback
-    overlay._unlockCallback = callback;
-
-    setTimeout(() => input.focus(), 100);
-}
-
-function closeLogoUnlockModal(confirmed) {
-    const overlay = document.getElementById('logo-unlock-overlay');
-    if (!overlay) return;
-
-    overlay.classList.remove('show');
-
-    if (confirmed && overlay._unlockCallback) {
-        const input = document.getElementById('logo-unlock-input');
-        overlay._unlockCallback(input ? input.value.trim() : '');
-    } else if (!confirmed && overlay._unlockCallback) {
-        overlay._unlockCallback(null);
-    }
-
-    overlay._unlockCallback = null;
-}
-
-function refreshLogoHelpText() {
-    const help = document.getElementById('logo-help-text');
-    if (!help) return;
-
-    if (isOwnerLogoUnlocked()) {
-        help.textContent = '🔓 Your Logo is unlocked on this device.';
-    } else {
-        help.textContent = 'Shared logos are available for everyone. Your Logo requires unlock code.';
-    }
-}
-
+function ensureLogoAccess(k) { return k || 'shared1'; }
+function refreshOwnerLogoOptionText() {}
+function refreshLogoHelpText() {}
 function refreshUnlockLogoButton() {
-    const wrap = document.getElementById('unlock-logo-wrap');
-    if (!wrap) return;
+    const w = document.getElementById('unlock-logo-wrap');
+    if (w) w.style.display = 'none';
+}
 
-    wrap.style.display = isOwnerLogoUnlocked() ? 'none' : 'block';
+function selectLogoThumbnail(key) {
+    _pendingLogoData = null;
+    const hi = document.getElementById('new_company_logo');
+    if (hi) hi.value = key;
+    _updateThumbSelection(key);
+}
+
+function handleLogoFilePick(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        _pendingLogoData = e.target.result;
+        const hi = document.getElementById('new_company_logo');
+        if (hi) hi.value = 'custom';
+        const customThumb = document.getElementById('logo-thumb-custom');
+        if (customThumb) {
+            customThumb.style.fontSize = '0';
+            customThumb.innerHTML = `<img src="${_pendingLogoData}" style="width:100%;height:100%;object-fit:contain;display:block;">`;
+        }
+        _updateThumbSelection('custom');
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+}
+
+function _updateThumbSelection(activeKey) {
+    ['shared1', 'shared2', 'shared3', 'custom'].forEach(k => {
+        const el = document.getElementById('logo-thumb-' + k);
+        if (!el) return;
+        if (k === activeKey) {
+            el.style.border = '2.5px solid #4c6ef5';
+            el.style.background = '#eef2ff';
+        } else {
+            el.style.border = k === 'custom' ? '2.5px dashed #cbd5e0' : '2.5px solid transparent';
+            el.style.background = '#f0f4ff';
+        }
+    });
+}
+
+function initLogoFormForCompany(company) {
+    _pendingLogoData = null;
+    const key = (company && company.logoKey) || 'shared1';
+    const hi = document.getElementById('new_company_logo');
+    if (hi) hi.value = key;
+
+    const customThumb = document.getElementById('logo-thumb-custom');
+    if (company && company.logoData) {
+        if (customThumb) {
+            customThumb.style.fontSize = '0';
+            customThumb.innerHTML = `<img src="${company.logoData}" style="width:100%;height:100%;object-fit:contain;display:block;">`;
+        }
+        _updateThumbSelection('custom');
+    } else {
+        if (customThumb) {
+            customThumb.style.fontSize = '22px';
+            customThumb.innerHTML = '📁';
+        }
+        _updateThumbSelection(key);
+    }
 }
 
 // =========================================
@@ -637,6 +561,7 @@ window.onload = function () {
     refreshOwnerLogoOptionText();
     refreshLogoHelpText();
     refreshUnlockLogoButton();
+    initLogoFormForCompany(getCurrentCompany());
     applyLang();
     initPWA();
 
@@ -714,21 +639,10 @@ function renderInvoiceForm() {
     // Logo
     const logoWrap = document.getElementById('logo-wrap');
     if (logoWrap) {
-        const key = co.logoKey || 'shared1';
-        if (key === 'owner') {
-            // Try loading owner's custom SVG file
-            const img = document.createElement('img');
-            img.id = 'company-logo';
-            img.alt = 'Logo';
-            img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-            img.onerror = function() {
-                logoWrap.innerHTML = LOGO_SVG.shared1;
-            };
-            img.src = LOGOS.owner;
-            logoWrap.innerHTML = '';
-            logoWrap.appendChild(img);
+        if (co.logoData) {
+            logoWrap.innerHTML = `<img id="company-logo" alt="Logo" src="${co.logoData}" style="width:100%;height:100%;object-fit:contain;">`;
         } else {
-            // Shared logos — always inline, no file needed
+            const key = co.logoKey || 'shared1';
             logoWrap.innerHTML = LOGO_SVG[key] || LOGO_SVG.shared1;
         }
     }
@@ -1206,11 +1120,17 @@ function saveCompany() {
 
     const editId = document.getElementById('edit_company_id').value;
 
-    const selectedLogoKey = ensureLogoAccess(
-        document.getElementById('new_company_logo').value || 'shared1'
-    );
-
+    const selectedLogoKey = (document.getElementById('new_company_logo').value) || 'shared1';
     const existingCompany = editId ? APP_DATA.companies.find(c => c.id === editId) : null;
+
+    // Keep existing logoData unless a new image was picked, or user switched to a preset
+    let finalLogoData = null;
+    if (selectedLogoKey === 'custom') {
+        finalLogoData = _pendingLogoData !== null
+            ? _pendingLogoData
+            : (existingCompany ? existingCompany.logoData || null : null);
+    }
+    // For shared1/shared2, finalLogoData stays null
 
     const company = {
         id: editId || 'company_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
@@ -1225,6 +1145,7 @@ function saveCompany() {
         bankIban: document.getElementById('new_company_bank_iban').value.trim(),
         bankBic: document.getElementById('new_company_bank_bic').value.trim(),
         logoKey: selectedLogoKey,
+        logoData: finalLogoData,
         lang: existingCompany ? (existingCompany.lang || 'en') : 'en'
     };
 
@@ -1296,11 +1217,13 @@ function renderCompanies() {
         <div class="client-card current-company-card">
             <div class="client-name">${esc(currentCompany.name || 'Untitled Company')}</div>
             <div style="font-size:12px;color:#718096;margin-bottom:6px;">
-                ${currentCompany.logoKey === 'owner'
-                    ? (isOwnerLogoUnlocked() ? 'Logo: 🔓 Your Logo' : 'Logo: 🔒 Your Logo')
+                ${currentCompany.logoData
+                    ? 'Logo: 🖼️ Custom'
+                    : currentCompany.logoKey === 'shared3'
+                    ? 'Logo: Shared 3'
                     : currentCompany.logoKey === 'shared2'
-                    ? 'Logo: Shared Logo 2'
-                    : 'Logo: Shared Logo 1'}
+                    ? 'Logo: Shared 2'
+                    : 'Logo: Shared 1'}
             </div>
 
             <div class="client-detail">${[
@@ -1341,8 +1264,7 @@ function editCompany(id) {
     document.getElementById('new_company_bank_name').value = c.bankName || '';
     document.getElementById('new_company_bank_iban').value = c.bankIban || '';
     document.getElementById('new_company_bank_bic').value = c.bankBic || '';
-    refreshOwnerLogoOptionText();
-    document.getElementById('new_company_logo').value = c.logoKey || 'shared1';
+    initLogoFormForCompany(c);
 
     document.getElementById('company-form-title').innerText = 'Edit Company';
     document.getElementById('cancel-company-edit-btn').style.display = 'flex';
@@ -1370,7 +1292,7 @@ function clearCompanyForm() {
     document.getElementById('new_company_bank_name').value = '';
     document.getElementById('new_company_bank_iban').value = '';
     document.getElementById('new_company_bank_bic').value = '';
-    document.getElementById('new_company_logo').value = 'shared1';
+    initLogoFormForCompany(null);
 
     document.getElementById('company-form-title').innerText = 'New Company';
     document.getElementById('cancel-company-edit-btn').style.display = 'none';
@@ -1383,19 +1305,12 @@ function deleteCompany(id) {
     const c = APP_DATA.companies.find(company => company.id === id);
     if (!c) return;
 
-    if (APP_DATA.companies.length === 1) {
-        showToast('⚠️ You need at least one company');
-        return;
-    }
-
     confirmAction('Delete Company', `Delete "${c.name}"?`, () => {
         APP_DATA.companies = APP_DATA.companies.filter(company => company.id !== id);
+        localStorage.removeItem(getCompanyStorageKey(id));
 
         if (APP_DATA.currentCompanyId === id) {
-            // Also remove this company's storage
-            localStorage.removeItem(getCompanyStorageKey(id));
             APP_DATA.currentCompanyId = APP_DATA.companies[0]?.id || '';
-
             if (APP_DATA.currentCompanyId) {
                 loadCompanyData(APP_DATA.currentCompanyId);
                 const newCo = getCurrentCompany();
@@ -1403,10 +1318,8 @@ function deleteCompany(id) {
             } else {
                 COMPANY_DATA = createEmptyCompanyData();
                 COMPANY_DATA.currentInvoice.num = new Date().getFullYear() + '-001';
+                currentLang = 'en';
             }
-        } else {
-            // Just remove storage for deleted company
-            localStorage.removeItem(getCompanyStorageKey(id));
         }
 
         saveAppData();
@@ -1417,8 +1330,11 @@ function deleteCompany(id) {
         refreshClientPicker();
         renderHistory();
         applyLang();
-
         showToast('🗑️ Company deleted');
+
+        if (APP_DATA.companies.length === 0) {
+            showPage('companies');
+        }
     });
 }
 

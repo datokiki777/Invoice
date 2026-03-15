@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v2.0.0';
+const CACHE_NAME = 'invoice-pwa-v1.0.3';
 const ASSETS = [
   './',
   './index.html',
@@ -6,10 +6,7 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/mylogo.svg',
-  './icons/logo.svg',
-  './icons/b.logo.svg'
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

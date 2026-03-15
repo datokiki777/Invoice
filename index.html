@@ -343,18 +343,49 @@
         <div class="form-row">
     <div class="form-group full">
         <label class="form-label">Logo</label>
-        <select class="form-input" id="new_company_logo">
-       <option value="shared1">Shared Logo 1</option>
-       <option value="shared2">Shared Logo 2</option>
-    </select>
-        <div class="form-help" id="logo-help-text">
-           Shared logos are available for everyone. Your Logo requires unlock code.
-       </div>
-       <div style="margin-top:8px;" id="unlock-logo-wrap">
-    <button type="button" class="hist-btn" style="background:#eef2ff;color:#4c6ef5;" onclick="unlockYourLogoManually()">
-        🔓 Unlock Your Logo
-    </button>
-</div>
+        <input type="hidden" id="new_company_logo" value="shared1">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;">
+
+            <div id="logo-thumb-shared1" onclick="selectLogoThumbnail('shared1')"
+                style="width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;border:2.5px solid #4c6ef5;box-sizing:border-box;padding:3px;background:#eef2ff;flex-shrink:0;">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
+                    <rect x="5" y="5" width="90" height="90" rx="18" fill="#ffffff"/>
+                    <rect x="10" y="10" width="80" height="80" rx="16" fill="#0d3d7a"/>
+                    <path d="M22 70 L40 35 L50 50 L60 30 L78 70 Z" fill="white"/>
+                    <circle cx="70" cy="32" r="7" fill="#ffc107"/>
+                </svg>
+            </div>
+
+            <div id="logo-thumb-shared2" onclick="selectLogoThumbnail('shared2')"
+                style="width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;box-sizing:border-box;padding:3px;background:#f0f4ff;flex-shrink:0;">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
+                    <rect x="5" y="5" width="90" height="90" rx="18" fill="#ffffff"/>
+                    <rect x="10" y="10" width="80" height="80" rx="16" fill="#0d3d7a"/>
+                    <path d="M22 70 L40 35 L50 50 L60 30 L78 70 Z" fill="white"/>
+                    <circle cx="70" cy="32" r="7" fill="#ffc107"/>
+                </svg>
+            </div>
+
+            <div id="logo-thumb-shared3" onclick="selectLogoThumbnail('shared3')"
+                style="width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;border:2.5px solid transparent;box-sizing:border-box;padding:3px;background:#f0f4ff;flex-shrink:0;">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
+                    <rect x="2" y="2" width="96" height="96" rx="18" fill="rgba(255,255,255,0.15)"/>
+                    <rect x="6" y="6" width="88" height="88" rx="15" fill="#0d3d7a"/>
+                    <path d="M25 35 L50 20 L75 35 L50 50 Z" fill="white"/>
+                    <path d="M25 50 L50 65 L75 50 L50 35 Z" fill="rgba(255,255,255,0.7)"/>
+                    <path d="M25 65 L50 80 L75 65 L50 50 Z" fill="white"/>
+                    <circle cx="50" cy="50" r="6" fill="#0d3d7a"/>
+                </svg>
+            </div>
+
+            <div id="logo-thumb-custom" onclick="document.getElementById('logo-file-input').click()"
+                style="width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;border:2.5px dashed #cbd5e0;box-sizing:border-box;background:#f8faff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">
+                📁
+            </div>
+
+        </div>
+        <input type="file" id="logo-file-input" accept="image/*" style="display:none;" onchange="handleLogoFilePick(this)">
+        <div style="display:none;" id="unlock-logo-wrap"></div>
     </div>
 </div>
 
@@ -500,26 +531,6 @@
     </div>
 </div>
 
-<!-- Logo Unlock Modal -->
-
-<div class="modal-overlay" id="logo-unlock-overlay">
-    <div class="modal">
-        <h3>🔓 Unlock Your Logo</h3>
-        <p style="color:#666;font-size:14px;margin-bottom:12px;">Enter the unlock code to access Your Logo:</p>
-        <input
-            type="password"
-            id="logo-unlock-input"
-            class="form-input"
-            placeholder="Enter code..."
-            style="width:100%;margin-bottom:16px;font-size:18px;letter-spacing:4px;text-align:center;"
-            onkeydown="if(event.key==='Enter') closeLogoUnlockModal(true)"
-        >
-        <div class="modal-actions">
-            <button class="btn" style="background:#eee;color:#333;" onclick="closeLogoUnlockModal(false)">Cancel</button>
-            <button class="btn btn-primary" onclick="closeLogoUnlockModal(true)">OK</button>
-        </div>
-    </div>
-</div>
 
 <script src="app.js"></script>
 </body>
