@@ -551,6 +551,57 @@ window.onload = function () {
             if (e.target === this) closeModal();
         });
     }
+
+    // ---- PRINT: hide empty VAT fields, ensure amounts are correct ----
+    window.addEventListener('beforeprint', function () {
+        // Recalculate to make sure amounts are fresh
+        calculateAll();
+
+        // VAT row: hide entire line if rate is 0
+        const vatLine = document.getElementById('vat_summary_line');
+        if (vatLine) {
+            vatLine.style.display = '';
+        }
+
+        const vatRateInput = document.getElementById('vat_rate');
+        if (vatRateInput) {
+            const rawVat = parseFloat(vatRateInput.value);
+            if (vatRateInput.value.trim() === '' || isNaN(rawVat) || rawVat < 0) {
+                vatRateInput.value = '0';
+            }
+        }
+
+        const vatNote = document.getElementById('vat_text');
+        if (vatNote) {
+            vatNote.dataset.hiddenForPrint = (!vatNote.value.trim()) ? 'true' : 'false';
+
+            if (!vatNote.value.trim()) {
+                vatNote.style.display = 'none';
+                vatNote.style.width = '0';
+                vatNote.style.padding = '0';
+                vatNote.style.margin = '0';
+                vatNote.style.border = '0';
+            }
+        }
+    });
+
+    window.addEventListener('afterprint', function () {
+        const vatLine = document.getElementById('vat_summary_line');
+        if (vatLine) {
+            vatLine.style.display = '';
+        }
+
+        const vatNote = document.getElementById('vat_text');
+        if (vatNote && vatNote.dataset.hiddenForPrint === 'true') {
+            vatNote.style.display = '';
+            vatNote.style.width = '';
+            vatNote.style.padding = '';
+            vatNote.style.margin = '';
+            vatNote.style.border = '';
+        }
+
+        refreshVatVisibility();
+    });
 };
 
 // =========================================
@@ -588,10 +639,22 @@ function renderInvoiceForm() {
     document.getElementById('bank_iban').value = co.bankIban || '';
     document.getElementById('bank_bic').value = co.bankBic || '';
 
+    // Sync print spans so bank details always show on print
+    const bankPrintMap = {
+        bank_recip_span: co.bankRecip,
+        bank_name_span:  co.bankName,
+        bank_iban_span:  co.bankIban,
+        bank_bic_span:   co.bankBic
+    };
+    Object.entries(bankPrintMap).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || '';
+    });
+
     document.getElementById('inv_num').value = ci.num || '';
     document.getElementById('inv_date').value = ci.date || '';
     document.getElementById('client_info').value = ci.client || '';
-    document.getElementById('vat_rate').value = ci.vatRate || 21;
+    document.getElementById('vat_rate').value = (ci.vatRate != null) ? ci.vatRate : 21;
     document.getElementById('vat_text').value = ci.vatText || '';
 
     if (!ci.items || !Array.isArray(ci.items) || ci.items.length === 0) {
@@ -614,6 +677,8 @@ function renderInvoiceForm() {
     if (picker) {
     picker.value = ci.clientId || '';
      }
+
+    refreshVatVisibility();
 }
 
 function renderItemRows() {
@@ -678,6 +743,40 @@ function removeItemRow(index) {
     saveAppData();
 }
 
+ function cleanupInvoiceItemsForSave() {
+    if (!COMPANY_DATA.currentInvoice || !Array.isArray(COMPANY_DATA.currentInvoice.items)) {
+        return;
+    }
+
+    COMPANY_DATA.currentInvoice.items = COMPANY_DATA.currentInvoice.items.filter(item => {
+        const desc = String(item.desc || '').trim();
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        const amount = qty * price;
+
+        if (amount <= 0) return false;
+
+        return true;
+    });
+
+    if (COMPANY_DATA.currentInvoice.items.length === 0) {
+        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
+    }
+}
+
+function refreshVatVisibility() {
+    const vatLine = document.getElementById('vat_summary_line');
+    const vatTextInput = document.getElementById('vat_text');
+
+    if (!vatLine || !vatTextInput) return;
+
+    // VAT row ყოველთვის ჩანდეს
+    vatLine.style.display = '';
+
+    // edit რეჟიმში note ველი ყოველთვის ჩანდეს
+    vatTextInput.style.display = '';
+}
+
 function calculateAll() {
     const items = COMPANY_DATA.currentInvoice.items;
     let subtotal = 0;
@@ -692,10 +791,16 @@ function calculateAll() {
         if (el) el.innerText = t.toFixed(2);
     });
 
-    const vatRate = parseFloat(document.getElementById('vat_rate').value) || 0;
-    COMPANY_DATA.currentInvoice.vatRate = vatRate;
+    const vatRateInput = document.getElementById('vat_rate');
+    const vatTextInput = document.getElementById('vat_text');
 
-    const vat = subtotal * (vatRate / 100);
+    const rawVat = parseFloat(vatRateInput?.value);
+    const vatRate = (!isNaN(rawVat) && rawVat > 0) ? rawVat : 0;
+
+    COMPANY_DATA.currentInvoice.vatRate = vatRate;
+    COMPANY_DATA.currentInvoice.vatText = vatTextInput ? vatTextInput.value.trim() : '';
+
+    const vat = vatRate > 0 ? subtotal * (vatRate / 100) : 0;
     const total = subtotal + vat;
 
     document.getElementById('subtotal_display').innerText = subtotal.toFixed(2);
@@ -720,11 +825,19 @@ function saveAllData() {
     company.bankIban = document.getElementById('bank_iban').value;
     company.bankBic = document.getElementById('bank_bic').value;
 
+    const s1 = document.getElementById('bank_recip_span'); if (s1) s1.textContent = company.bankRecip;
+    const s2 = document.getElementById('bank_name_span');  if (s2) s2.textContent = company.bankName;
+    const s3 = document.getElementById('bank_iban_span');  if (s3) s3.textContent = company.bankIban;
+    const s4 = document.getElementById('bank_bic_span');   if (s4) s4.textContent = company.bankBic;
+
     COMPANY_DATA.currentInvoice.num = document.getElementById('inv_num').value;
     COMPANY_DATA.currentInvoice.date = document.getElementById('inv_date').value;
     COMPANY_DATA.currentInvoice.client = document.getElementById('client_info').value;
-    COMPANY_DATA.currentInvoice.vatRate = parseFloat(document.getElementById('vat_rate').value) || 0;
-    COMPANY_DATA.currentInvoice.vatText = document.getElementById('vat_text').value;
+
+    const vatRaw = document.getElementById('vat_rate').value.trim();
+    COMPANY_DATA.currentInvoice.vatRate = vatRaw === '' ? 0 : (parseFloat(vatRaw) || 0);
+
+    COMPANY_DATA.currentInvoice.vatText = document.getElementById('vat_text').value.trim();
 
     calculateAll();
     saveAppData();
@@ -737,9 +850,40 @@ function saveAllData() {
 function saveInvoiceToHistory() {
     saveAllData();
 
+    cleanupInvoiceItemsForSave();
+
+    const validItems = (COMPANY_DATA.currentInvoice.items || []).filter(item => {
+        const desc = String(item.desc || '').trim();
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        const amount = qty * price;
+
+        return amount > 0;
+    });
+
+    if (validItems.length === 0) {
+        showToast('⚠️ No valid invoice rows to save');
+        renderItemRows();
+        calculateAll();
+        return;
+    }
+
+    COMPANY_DATA.currentInvoice.items = validItems;
+
+    renderItemRows();
+    calculateAll();
+
+    const co = getCurrentCompany();
     const inv = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
     delete inv.savedAt;
     inv.savedAt = new Date().toISOString();
+
+    if (co) {
+        inv.bankRecip = co.bankRecip || '';
+        inv.bankName  = co.bankName  || '';
+        inv.bankIban  = co.bankIban  || '';
+        inv.bankBic   = co.bankBic   || '';
+    }
 
     if (!inv.num || !inv.num.trim()) {
         inv.num = generateInvoiceNumber();
@@ -762,7 +906,7 @@ function saveInvoiceToHistory() {
         date: getCurrentDate(),
         client: '',
         clientId: '',
-        vatRate: inv.vatRate || 21,
+        vatRate: (inv.vatRate != null) ? inv.vatRate : 21,
         vatText: '',
         items: [{ desc: '', qty: 1, price: 0 }]
     };
@@ -807,11 +951,13 @@ function renderHistory() {
                 <div class="hist-meta">📅 ${esc(inv.date)}</div>
                 <div class="hist-actions">
                     <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
+                    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
                     <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
                 </div>
             </div>
             <div class="hist-right">
                 <div class="hist-amount">€${total.toFixed(2)}</div>
+                <div class="hist-subtotal">Subtotal: €${subtotal.toFixed(2)}</div>
                 <div class="hist-date">${savedDate ? 'Saved: ' + savedDate : ''}</div>
                 <span class="hist-badge ${isCurrent ? 'badge-current' : 'badge-saved'}">
                     ${isCurrent ? '● Current' : '✓ Saved'}
@@ -827,6 +973,16 @@ function loadInvoiceFromHistory(index) {
 
     delete loaded.savedAt;
 
+    // Restore snapshotted bank details into the active company so they show in the form
+    const co = getCurrentCompany();
+    if (co) {
+        if (loaded.bankRecip !== undefined) co.bankRecip = loaded.bankRecip;
+        if (loaded.bankName  !== undefined) co.bankName  = loaded.bankName;
+        if (loaded.bankIban  !== undefined) co.bankIban  = loaded.bankIban;
+        if (loaded.bankBic   !== undefined) co.bankBic   = loaded.bankBic;
+        saveGlobalData();
+    }
+
     COMPANY_DATA.currentInvoice = loaded;
 
     if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
@@ -838,6 +994,60 @@ function loadInvoiceFromHistory(index) {
     refreshClientPicker();
     showPage('invoice');
     showToast('📂 Invoice loaded');
+}
+
+function printInvoiceFromHistory(index) {
+    // Load invoice into the form, then print — without changing currentInvoice permanently
+    const inv = COMPANY_DATA.invoices[index];
+    if (!inv) return;
+
+    // Temporarily swap in the selected invoice
+    const previousInvoice = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
+    const previousBankRecip = getCurrentCompany()?.bankRecip;
+    const previousBankName  = getCurrentCompany()?.bankName;
+    const previousBankIban  = getCurrentCompany()?.bankIban;
+    const previousBankBic   = getCurrentCompany()?.bankBic;
+
+    // Restore bank snapshot from saved invoice into company (for renderInvoiceForm)
+    const co = getCurrentCompany();
+    if (co) {
+        if (inv.bankRecip !== undefined) co.bankRecip = inv.bankRecip;
+        if (inv.bankName  !== undefined) co.bankName  = inv.bankName;
+        if (inv.bankIban  !== undefined) co.bankIban  = inv.bankIban;
+        if (inv.bankBic   !== undefined) co.bankBic   = inv.bankBic;
+    }
+
+    COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(inv));
+    if (!COMPANY_DATA.currentInvoice.items || !COMPANY_DATA.currentInvoice.items.length) {
+        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
+    }
+
+    renderInvoiceForm();
+    refreshClientPicker();
+
+    // Switch to invoice page so print captures it correctly
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const invoicePage = document.getElementById('page-invoice');
+    if (invoicePage) invoicePage.classList.add('active');
+
+    // Print, then restore everything — longer delay so calculateAll() has time to render
+    setTimeout(() => {
+        window.print();
+
+        // Restore previous state after print dialog closes
+        setTimeout(() => {
+            COMPANY_DATA.currentInvoice = previousInvoice;
+            if (co) {
+                if (previousBankRecip !== undefined) co.bankRecip = previousBankRecip;
+                if (previousBankName  !== undefined) co.bankName  = previousBankName;
+                if (previousBankIban  !== undefined) co.bankIban  = previousBankIban;
+                if (previousBankBic   !== undefined) co.bankBic   = previousBankBic;
+            }
+            renderInvoiceForm();
+            refreshClientPicker();
+            showPage('history');
+        }, 500);
+    }, 350);
 }
 
 function deleteInvoice(index) {
@@ -941,17 +1151,19 @@ function editClient(id) {
     const c = COMPANY_DATA.clients.find(c => c.id === id);
     if (!c) return;
 
-    document.getElementById('edit_client_id').value = c.id;
-    document.getElementById('new_client_name').value = c.name;
-    document.getElementById('new_client_reg').value = c.reg || '';
-    document.getElementById('new_client_addr').value = c.addr || '';
-    document.getElementById('new_client_email').value = c.email || '';
-    document.getElementById('new_client_phone').value = c.phone || '';
-    document.getElementById('new_client_note').value = c.note || '';
-    document.getElementById('client-form-title').innerText = 'Edit Client';
-    document.getElementById('cancel-edit-btn').style.display = 'flex';
-    document.getElementById('new_client_name').focus();
-    document.getElementById('new_client_name').scrollIntoView({ behavior: 'smooth' });
+    confirmAction('Edit Client', `Edit "${c.name}"?`, () => {
+        document.getElementById('edit_client_id').value = c.id;
+        document.getElementById('new_client_name').value = c.name;
+        document.getElementById('new_client_reg').value = c.reg || '';
+        document.getElementById('new_client_addr').value = c.addr || '';
+        document.getElementById('new_client_email').value = c.email || '';
+        document.getElementById('new_client_phone').value = c.phone || '';
+        document.getElementById('new_client_note').value = c.note || '';
+        document.getElementById('client-form-title').innerText = 'Edit Client';
+        document.getElementById('cancel-edit-btn').style.display = 'flex';
+        document.getElementById('new_client_name').focus();
+        document.getElementById('new_client_name').scrollIntoView({ behavior: 'smooth' });
+    });
 }
 
 function cancelClientEdit() {
@@ -1204,27 +1416,29 @@ function editCompany(id) {
     const c = APP_DATA.companies.find(company => company.id === id);
     if (!c) return;
 
-    document.getElementById('edit_company_id').value = c.id;
-    document.getElementById('new_company_name').value = c.name || '';
-    document.getElementById('new_company_reg').value = c.reg || '';
-    document.getElementById('new_company_addr').value = c.addr || '';
-    document.getElementById('new_company_phone').value = c.phone || '';
-    document.getElementById('new_company_email').value = c.email || '';
-    document.getElementById('new_company_website').value = c.website || '';
-    document.getElementById('new_company_bank_recip').value = c.bankRecip || '';
-    document.getElementById('new_company_bank_name').value = c.bankName || '';
-    document.getElementById('new_company_bank_iban').value = c.bankIban || '';
-    document.getElementById('new_company_bank_bic').value = c.bankBic || '';
-    initLogoFormForCompany(c);
+    confirmAction('Edit Company', `Edit "${c.name}"?`, () => {
+        document.getElementById('edit_company_id').value = c.id;
+        document.getElementById('new_company_name').value = c.name || '';
+        document.getElementById('new_company_reg').value = c.reg || '';
+        document.getElementById('new_company_addr').value = c.addr || '';
+        document.getElementById('new_company_phone').value = c.phone || '';
+        document.getElementById('new_company_email').value = c.email || '';
+        document.getElementById('new_company_website').value = c.website || '';
+        document.getElementById('new_company_bank_recip').value = c.bankRecip || '';
+        document.getElementById('new_company_bank_name').value = c.bankName || '';
+        document.getElementById('new_company_bank_iban').value = c.bankIban || '';
+        document.getElementById('new_company_bank_bic').value = c.bankBic || '';
+        initLogoFormForCompany(c);
 
-    document.getElementById('company-form-title').innerText = 'Edit Company';
-    document.getElementById('cancel-company-edit-btn').style.display = 'flex';
-    refreshOwnerLogoOptionText();
-    refreshLogoHelpText();
-    refreshUnlockLogoButton();
+        document.getElementById('company-form-title').innerText = 'Edit Company';
+        document.getElementById('cancel-company-edit-btn').style.display = 'flex';
+        refreshOwnerLogoOptionText();
+        refreshLogoHelpText();
+        refreshUnlockLogoButton();
 
-    document.getElementById('new_company_name').focus();
-    document.getElementById('new_company_name').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('new_company_name').focus();
+        document.getElementById('new_company_name').scrollIntoView({ behavior: 'smooth' });
+    });
 }
 
 function cancelCompanyEdit() {
@@ -1295,21 +1509,28 @@ function switchCompany(id) {
     const company = APP_DATA.companies.find(c => c.id === id);
     if (!company) return;
 
+    bankEditConfirmed = false;
+
     // Save current active company data before switch
+    
     saveAllData();
     saveCompanyData();
 
     // Switch active company
+    
     APP_DATA.currentCompanyId = id;
     saveGlobalData();
 
     // Load selected company data
+    
     loadCompanyData(id);
 
     // Apply selected company's language
+    
     currentLang = company.lang || 'en';
 
     // Refresh whole UI from selected company
+    
     refreshNavCompanyPicker();
     renderInvoiceForm();
     renderClients();
@@ -1348,6 +1569,7 @@ function refreshNavCompanyPicker() {
  // =========================================
 // LOGO RENDER
 // =========================================
+
 function getNeutralLogoSVG() {
     return `
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1370,8 +1592,32 @@ function getLogoMarkup(logoKey) {
 }
 
 // =========================================
-// HELPERS
+// BANK DETAILS EDIT PROTECTION
 // =========================================
+let bankEditConfirmed = false;
+
+function requestBankEdit(inputEl) {
+    if (bankEditConfirmed) return; // already confirmed this session
+    // blur to prevent immediate editing
+    inputEl.blur();
+    confirmAction(
+        '✏️ Edit Bank Details?',
+        'Bank details are shared across all invoices for this company. Are you sure you want to edit them?',
+        () => {
+            bankEditConfirmed = true;
+            // focus the input after confirmation
+            setTimeout(() => {
+                inputEl.focus();
+                // move cursor to end
+                const v = inputEl.value;
+                inputEl.value = '';
+                inputEl.value = v;
+            }, 50);
+        }
+    );
+}
+
+
 function generateInvoiceNumber() {
     const year = new Date().getFullYear();
 
@@ -1428,8 +1674,36 @@ function setTxt(sel, txt) {
 // LANGUAGE SWITCH
 // =========================================
 function toggleLang() {
-    currentLang = currentLang === 'en' ? 'de' : 'en';
-    // Save lang to current company
+    const panel = document.getElementById('lang-dropdown');
+    if (!panel) return;
+    const isOpen = panel.classList.contains('show');
+    if (isOpen) {
+        closeLangDropdown();
+    } else {
+        panel.classList.add('show');
+        // close on outside tap
+        setTimeout(() => {
+            document.addEventListener('click', closeLangDropdownOutside, { once: true });
+        }, 10);
+    }
+}
+
+function closeLangDropdown() {
+    const panel = document.getElementById('lang-dropdown');
+    if (panel) panel.classList.remove('show');
+}
+
+function closeLangDropdownOutside(e) {
+    const panel = document.getElementById('lang-dropdown');
+    const btn = document.getElementById('lang-toggle');
+    if (panel && !panel.contains(e.target) && e.target !== btn) {
+        panel.classList.remove('show');
+    }
+}
+
+function selectLang(lang) {
+    currentLang = lang;
+    closeLangDropdown();
     const co = getCurrentCompany();
     if (co) {
         co.lang = currentLang;
@@ -1519,4 +1793,6 @@ function updateVatLabel() {
     vatBox.appendChild(document.createTextNode('%)'));
     vatBox.appendChild(document.createTextNode(' '));
     if (vatTextInput) vatBox.appendChild(vatTextInput);
+
+    refreshVatVisibility();
 }
