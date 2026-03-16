@@ -494,6 +494,182 @@ function initPWA() {
     }
 }
 
+ // =========================================
+// PRINT-ONLY CLEANUP HELPERS
+// =========================================
+let printCleanupFns = [];
+
+function addPrintCleanup(fn) {
+    printCleanupFns.push(fn);
+}
+
+function runPrintCleanup() {
+    while (printCleanupFns.length) {
+        const fn = printCleanupFns.pop();
+        try { fn(); } catch (e) {}
+    }
+}
+
+function getElementTextForPrint(el) {
+    if (!el) return '';
+    if ('value' in el) return String(el.value || '').trim();
+    return String(el.textContent || '').trim();
+}
+
+function hideElementOnlyForPrint(el) {
+    if (!el) return;
+
+    const oldDisplay = el.style.display;
+    addPrintCleanup(() => {
+        el.style.display = oldDisplay;
+    });
+
+    el.style.display = 'none';
+}
+
+function styleElementOnlyForPrint(el, styles) {
+    if (!el) return;
+
+    const old = {};
+    Object.keys(styles).forEach(key => {
+        old[key] = el.style[key];
+    });
+
+    addPrintCleanup(() => {
+        Object.keys(old).forEach(key => {
+            el.style[key] = old[key];
+        });
+    });
+
+    Object.assign(el.style, styles);
+}
+
+function findPrintableRow(el) {
+    if (!el) return null;
+
+    return el.closest(
+        '.bank-row, .company-row, .company-line, .meta-company-row, .meta-company-line, .detail-row, .info-row, .info-line'
+    ) || el.parentElement;
+}
+
+function hideFieldRowIfEmptyForPrint(fieldId) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+
+    const text = getElementTextForPrint(el);
+    if (text) return;
+
+    const row = findPrintableRow(el);
+    hideElementOnlyForPrint(row || el);
+}
+
+function hideBankCardIfFullyEmptyForPrint() {
+    const ids = ['bank_recip_span', 'bank_name_span', 'bank_iban_span', 'bank_bic_span'];
+    const hasAnyValue = ids.some(id => {
+        const el = document.getElementById(id);
+        return el && getElementTextForPrint(el);
+    });
+
+    if (hasAnyValue) return;
+
+    const bankSpan = document.getElementById('bank_recip_span')
+        || document.getElementById('bank_name_span')
+        || document.getElementById('bank_iban_span')
+        || document.getElementById('bank_bic_span');
+
+    if (!bankSpan) return;
+
+    const bankCard = bankSpan.closest('.footer-card, .footer-box, .bank-box, .bank-details-box');
+    if (bankCard) {
+        hideElementOnlyForPrint(bankCard);
+    }
+}
+
+function compactVatForPrint() {
+    const vatRateInput = document.getElementById('vat_rate');
+    const vatTextInput = document.getElementById('vat_text');
+    const vatBox = document.querySelector('.summary-vat-label');
+
+    if (vatRateInput) {
+        styleElementOnlyForPrint(vatRateInput, {
+            width: '32px',
+            minWidth: '32px',
+            padding: '0',
+            margin: '0 2px',
+            textAlign: 'center'
+        });
+    }
+
+    if (vatTextInput) {
+        const note = (vatTextInput.value || '').trim();
+
+        if (!note) {
+            styleElementOnlyForPrint(vatTextInput, {
+                display: 'none',
+                width: '0',
+                minWidth: '0',
+                padding: '0',
+                margin: '0',
+                border: '0'
+            });
+        } else {
+            styleElementOnlyForPrint(vatTextInput, {
+                marginLeft: '4px'
+            });
+        }
+    }
+
+    if (vatBox) {
+        styleElementOnlyForPrint(vatBox, {
+            gap: '0',
+            letterSpacing: '0'
+        });
+    }
+}
+
+function preparePrintLayout() {
+    runPrintCleanup();
+
+    calculateAll();
+
+    const vatRateInput = document.getElementById('vat_rate');
+    if (vatRateInput) {
+        const rawVat = parseFloat(vatRateInput.value);
+        if (vatRateInput.value.trim() === '' || isNaN(rawVat) || rawVat < 0) {
+            vatRateInput.value = '0';
+        }
+    }
+
+    // COMPANY block: hide empty lines only on print
+    hideFieldRowIfEmptyForPrint('my_reg_no');
+    hideFieldRowIfEmptyForPrint('my_addr');
+    hideFieldRowIfEmptyForPrint('my_phone');
+    hideFieldRowIfEmptyForPrint('my_email');
+    hideFieldRowIfEmptyForPrint('my_website');
+
+    // BANK block: hide empty rows only on print
+    hideFieldRowIfEmptyForPrint('bank_recip_span');
+    hideFieldRowIfEmptyForPrint('bank_name_span');
+    hideFieldRowIfEmptyForPrint('bank_iban_span');
+    hideFieldRowIfEmptyForPrint('bank_bic_span');
+
+    // If whole bank card is empty, hide full bank card
+    hideBankCardIfFullyEmptyForPrint();
+
+    // VAT line: keep visible, but make compact
+    const vatLine = document.getElementById('vat_summary_line');
+    if (vatLine) {
+        vatLine.style.display = '';
+    }
+
+    compactVatForPrint();
+}
+
+function restorePrintLayout() {
+    runPrintCleanup();
+    refreshVatVisibility();
+}
+
 // =========================================
 // INIT
 // =========================================
@@ -552,55 +728,14 @@ window.onload = function () {
         });
     }
 
-    // ---- PRINT: hide empty VAT fields, ensure amounts are correct ----
+    // ---- PRINT: PDF-only cleanup + compact VAT ----
+    
     window.addEventListener('beforeprint', function () {
-        // Recalculate to make sure amounts are fresh
-        calculateAll();
-
-        // VAT row: hide entire line if rate is 0
-        const vatLine = document.getElementById('vat_summary_line');
-        if (vatLine) {
-            vatLine.style.display = '';
-        }
-
-        const vatRateInput = document.getElementById('vat_rate');
-        if (vatRateInput) {
-            const rawVat = parseFloat(vatRateInput.value);
-            if (vatRateInput.value.trim() === '' || isNaN(rawVat) || rawVat < 0) {
-                vatRateInput.value = '0';
-            }
-        }
-
-        const vatNote = document.getElementById('vat_text');
-        if (vatNote) {
-            vatNote.dataset.hiddenForPrint = (!vatNote.value.trim()) ? 'true' : 'false';
-
-            if (!vatNote.value.trim()) {
-                vatNote.style.display = 'none';
-                vatNote.style.width = '0';
-                vatNote.style.padding = '0';
-                vatNote.style.margin = '0';
-                vatNote.style.border = '0';
-            }
-        }
+        preparePrintLayout();
     });
 
     window.addEventListener('afterprint', function () {
-        const vatLine = document.getElementById('vat_summary_line');
-        if (vatLine) {
-            vatLine.style.display = '';
-        }
-
-        const vatNote = document.getElementById('vat_text');
-        if (vatNote && vatNote.dataset.hiddenForPrint === 'true') {
-            vatNote.style.display = '';
-            vatNote.style.width = '';
-            vatNote.style.padding = '';
-            vatNote.style.margin = '';
-            vatNote.style.border = '';
-        }
-
-        refreshVatVisibility();
+        restorePrintLayout();
     });
 };
 
@@ -679,6 +814,7 @@ function renderInvoiceForm() {
      }
 
     refreshVatVisibility();
+    updateClientPrintBlock();
 }
 
 function renderItemRows() {
@@ -749,16 +885,15 @@ function removeItemRow(index) {
     }
 
     COMPANY_DATA.currentInvoice.items = COMPANY_DATA.currentInvoice.items.filter(item => {
-        const desc = String(item.desc || '').trim();
         const qty = parseFloat(item.qty) || 0;
         const price = parseFloat(item.price) || 0;
         const amount = qty * price;
 
-        if (amount <= 0) return false;
-
-        return true;
+        // დარჩეს მხოლოდ ის row, რომელსაც თანხა აქვს
+        return amount > 0;
     });
 
+    // თუ არაფერი დარჩა, ფორმა სულ არ დაიცალოს
     if (COMPANY_DATA.currentInvoice.items.length === 0) {
         COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
     }
@@ -840,6 +975,7 @@ function saveAllData() {
     COMPANY_DATA.currentInvoice.vatText = document.getElementById('vat_text').value.trim();
 
     calculateAll();
+    updateClientPrintBlock();
     saveAppData();
 }
 
@@ -847,74 +983,55 @@ function saveAllData() {
 // INVOICE HISTORY
 // =========================================
 
-function saveInvoiceToHistory() {
-    saveAllData();
-
-    cleanupInvoiceItemsForSave();
-
-    const validItems = (COMPANY_DATA.currentInvoice.items || []).filter(item => {
-        const desc = String(item.desc || '').trim();
-        const qty = parseFloat(item.qty) || 0;
-        const price = parseFloat(item.price) || 0;
-        const amount = qty * price;
-
-        return amount > 0;
-    });
-
-    if (validItems.length === 0) {
-        showToast('⚠️ No valid invoice rows to save');
-        renderItemRows();
-        calculateAll();
+ function saveInvoiceToHistory() {
+    const company = getCurrentCompany();
+    if (!company) {
+        showToast('⚠️ No company selected');
         return;
     }
 
-    COMPANY_DATA.currentInvoice.items = validItems;
+    // ჯერ ფორმიდან წამოიღოს ყველა მიმდინარე მნიშვნელობა
+    saveAllData();
 
-    renderItemRows();
-    calculateAll();
+    // save-ის წინ გაწმინდოს 0-თანხიანი row-ები
+    cleanupInvoiceItemsForSave();
 
-    const co = getCurrentCompany();
-    const inv = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
-    delete inv.savedAt;
-    inv.savedAt = new Date().toISOString();
+    const ci = COMPANY_DATA.currentInvoice;
 
-    if (co) {
-        inv.bankRecip = co.bankRecip || '';
-        inv.bankName  = co.bankName  || '';
-        inv.bankIban  = co.bankIban  || '';
-        inv.bankBic   = co.bankBic   || '';
+    const hasAmountRow = (ci.items || []).some(item => {
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        return qty * price > 0;
+    });
+
+    if (!hasAmountRow) {
+        showToast('⚠️ Invoice has no amount to save');
+        return;
     }
 
-    if (!inv.num || !inv.num.trim()) {
-        inv.num = generateInvoiceNumber();
-    }
+    const invoiceCopy = JSON.parse(JSON.stringify(ci));
 
-    const existIdx = COMPANY_DATA.invoices.findIndex(i => i.num === inv.num);
+    invoiceCopy.savedAt = new Date().toISOString();
 
-    if (existIdx >= 0) {
-        COMPANY_DATA.invoices[existIdx] = inv;
-        showToast('♻️ Invoice updated!');
+    // ბანკის მონაცემებიც შეინახოს snapshot-ად
+    invoiceCopy.bankRecip = company.bankRecip || '';
+    invoiceCopy.bankName = company.bankName || '';
+    invoiceCopy.bankIban = company.bankIban || '';
+    invoiceCopy.bankBic = company.bankBic || '';
+
+    const existingIndex = COMPANY_DATA.invoices.findIndex(inv => inv.num === invoiceCopy.num);
+
+    if (existingIndex >= 0) {
+        COMPANY_DATA.invoices[existingIndex] = invoiceCopy;
+        showToast('💾 Invoice updated');
     } else {
-        COMPANY_DATA.invoices.unshift(inv);
-        showToast('✅ Invoice saved!');
+        COMPANY_DATA.invoices.unshift(invoiceCopy);
+        showToast('✅ Invoice saved');
     }
-
-    const nextNum = generateInvoiceNumber();
-
-    COMPANY_DATA.currentInvoice = {
-        num: nextNum,
-        date: getCurrentDate(),
-        client: '',
-        clientId: '',
-        vatRate: (inv.vatRate != null) ? inv.vatRate : 21,
-        vatText: '',
-        items: [{ desc: '', qty: 1, price: 0 }]
-    };
 
     saveAppData();
-    renderInvoiceForm();
     renderHistory();
-    refreshClientPicker();
+    renderInvoiceForm();
 }
 
 function renderHistory() {
@@ -1668,6 +1785,31 @@ function closeModal() {
 function setTxt(sel, txt) {
     const el = document.querySelector(sel);
     if (el) el.textContent = txt;
+}
+
+function updateClientPrintBlock() {
+    const src = document.getElementById('client_info');
+    const target = document.getElementById('client_info_print');
+
+    if (!src || !target) return;
+
+    const lines = String(src.value || '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    if (!lines.length) {
+        target.innerHTML = '';
+        return;
+    }
+
+    const firstLine = esc(lines[0]);
+    const otherLines = lines.slice(1).map(esc);
+
+    target.innerHTML = `
+        <div class="client-print-name">${firstLine}</div>
+        ${otherLines.map(line => `<div class="client-print-line">${line}</div>`).join('')}
+    `;
 }
 
 // =========================================

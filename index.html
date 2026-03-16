@@ -74,13 +74,30 @@
                 </div>
 
                 <div class="company-fields">
-                    <input type="text" class="inv-input company-name" id="my_comp_name" oninput="saveAllData()" value="" placeholder="Company name">
-                    <input type="text" class="inv-input" id="my_reg_no" oninput="saveAllData()" value="" placeholder="Reg No / VAT No">
-                    <input type="text" class="inv-input" id="my_addr" oninput="saveAllData()" value="" placeholder="Address">
-                    <input type="text" class="inv-input" id="my_phone" oninput="saveAllData()" value="" placeholder="Phone">
-                    <input type="text" class="inv-input" id="my_email" oninput="saveAllData()" value="" placeholder="Email">
-                    <input type="text" class="inv-input" id="my_website" oninput="saveAllData()" value="" placeholder="Website">
-                </div>
+                 <div class="company-row">
+        <input type="text" class="inv-input company-name" id="my_comp_name" oninput="saveAllData()" value="" placeholder="Company name">
+    </div>
+
+    <div class="company-row">
+        <input type="text" class="inv-input" id="my_reg_no" oninput="saveAllData()" value="" placeholder="Reg No / VAT No">
+    </div>
+
+    <div class="company-row">
+        <input type="text" class="inv-input" id="my_addr" oninput="saveAllData()" value="" placeholder="Address">
+    </div>
+
+    <div class="company-row">
+        <input type="text" class="inv-input" id="my_phone" oninput="saveAllData()" value="" placeholder="Phone">
+    </div>
+
+    <div class="company-row">
+        <input type="text" class="inv-input" id="my_email" oninput="saveAllData()" value="" placeholder="Email">
+    </div>
+
+    <div class="company-row">
+        <input type="text" class="inv-input" id="my_website" oninput="saveAllData()" value="" placeholder="Website">
+    </div>
+</div>
             </div>
 
             <div class="invoice-title-block">
@@ -91,31 +108,33 @@
         <!-- Meta -->
         
         <div class="inv-meta">
-            <div class="meta-left">
-                <div class="meta-label">Bill To</div>
-                <div class="client-select-row no-print">
-                    <select class="client-select" id="client_picker" onchange="fillClientFromPicker()">
-                        <option value="">— Select a client —</option>
-                    </select>
-                </div>
-
-                <textarea class="client-textarea" id="client_info" rows="3" oninput="saveAllData()" placeholder="Client name, address..."></textarea>
-            </div>
-
-            <div class="meta-right">
-                <div class="meta-label">Invoice Details</div>
-
-                <div class="meta-detail-row">
-                    <label>Invoice #</label>
-                    <input type="text" class="meta-text-input" id="inv_num" oninput="saveAllData()" value="">
-                </div>
-
-                <div class="meta-detail-row">
-                    <label>Date</label>
-                    <input type="text" class="meta-text-input" id="inv_date" oninput="saveAllData()" value="">
-                </div>
-            </div>
+    <div class="meta-left">
+        <div class="meta-label">Bill To</div>
+        <div class="client-select-row no-print">
+            <select class="client-select" id="client_picker" onchange="fillClientFromPicker()">
+                <option value="">— Select a client —</option>
+            </select>
         </div>
+
+        <textarea class="client-textarea" id="client_info" rows="3" oninput="saveAllData()" placeholder="Client name, address..."></textarea>
+
+        <div class="client-print-block print-only" id="client_info_print"></div>
+    </div>
+
+    <div class="meta-right">
+        <div class="meta-label">Invoice Details</div>
+
+        <div class="meta-detail-row">
+            <label>Invoice #</label>
+            <input type="text" class="meta-text-input" id="inv_num" oninput="saveAllData()" value="">
+        </div>
+
+        <div class="meta-detail-row">
+            <label>Date</label>
+            <input type="text" class="meta-text-input" id="inv_date" oninput="saveAllData()" value="">
+        </div>
+    </div>
+</div>
 
         <!-- Items -->
         
@@ -170,7 +189,7 @@
         
 <div class="inv-footer-grid">
 
-    <div class="footer-card bank-card">
+    <div class="footer-card bank-card" id="bank_card">
         <div class="footer-title">Bank Details</div>
 
         <div class="bank-card-content">

@@ -1257,8 +1257,35 @@ textarea.form-input {
     }
 
     .print-only {
-        display: inline !important;
-    }
+    display: inline !important;
+}
+
+.client-print-block {
+    display: block !important;
+    white-space: normal !important;
+    line-height: 1.45 !important;
+}
+
+#client_info {
+    display: none !important;
+}
+
+#client_info_print {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.client-print-name {
+    font-weight: 700 !important;
+    color: #1a202c !important;
+    margin-bottom: 2px !important;
+}
+
+.client-print-line {
+    font-weight: 400 !important;
+    color: #2d3748 !important;
+}
 
     .bank-print-span {
         font-size: 10.5px !important;
@@ -1401,17 +1428,19 @@ textarea.form-input {
     padding: 18px 0 2px !important;
     border-bottom: none !important;
     background: #ffffff !important;
-    align-items: start !important;
+    align-items: stretch !important;
 }
 
 .meta-left {
-    justify-self: start !important;
+    justify-self: stretch !important;
     width: 100% !important;
+    height: 100% !important;
 }
 
 .meta-right {
-    justify-self: end !important;
+    justify-self: stretch !important;
     width: 100% !important;
+    height: 100% !important;
 }
 
 .client-select-row {
