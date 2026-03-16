@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v1.1.0';
+const CACHE_NAME = 'invoice-pwa-v2.0.0';
 
 const APP_SHELL = [
   './',
