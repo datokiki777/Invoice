@@ -1,12 +1,13 @@
-const CACHE_NAME = 'invoice-pwa-v1.4.5';
+const CACHE_NAME = 'invoice-pwa-v1.1.0';
+
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Install: preload app shell
@@ -19,16 +20,13 @@ self.addEventListener('install', event => {
 // Activate: remove old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
-    Promise.all([
-      caches.keys().then(keys =>
-        Promise.all(
-          keys
-            .filter(key => key !== CACHE_NAME)
-            .map(key => caches.delete(key))
-        )
-      ),
-      self.clients.claim()
-    ])
+    caches.keys().then(keys =>
+      Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      )
+    )
   );
 });
 
@@ -51,7 +49,7 @@ function isCacheableRequest(request) {
 
 // Fetch strategy:
 // - HTML/CSS/JS/manifest => network first
-// - icons/static same-origin files => cache first
+// - other same-origin files => cache first
 self.addEventListener('fetch', event => {
   const { request } = event;
 
@@ -86,7 +84,7 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Allow app to activate waiting SW after user confirms update
+// Activate waiting SW only after user confirms update
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
