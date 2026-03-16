@@ -194,8 +194,8 @@ const LANG = {
     },
     de: {
         invoiceWord: 'RECHNUNG',
-        billedTo: 'Rechnungsempfänger',
-        invoiceDetails: 'Rechnungsdetails',
+        billedTo: 'Rechnung an',
+        invoiceDetails: 'Rechnungsdaten',
         invoiceNum: 'Rechnungs-Nr.',
         date: 'Datum',
         description: 'Beschreibung',
