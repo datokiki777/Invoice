@@ -5,6 +5,7 @@ let deferredPrompt = null;
 let swRegistration = null;
 let modalCallback = null;
 let currentLang = 'en';
+let userAcceptedUpdate = false;
 
 // =========================================
 // DATA MODEL
@@ -430,6 +431,7 @@ function applyUpdate() {
     dismissUpdate();
 
     if (swRegistration && swRegistration.waiting) {
+        userAcceptedUpdate = true;
         swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
     } else {
         window.location.reload();
@@ -486,11 +488,16 @@ function initPWA() {
         });
 
         let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (refreshing) return;
-            refreshing = true;
-            window.location.reload();
-        });
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+
+         // reload only after user explicitly accepted update
+        if (!userAcceptedUpdate) return;
+
+         refreshing = true;
+         window.location.reload();
+      });
     }
 }
 
