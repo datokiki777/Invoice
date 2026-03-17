@@ -1204,6 +1204,7 @@ function newInvoice() {
         saveAppData();
         renderInvoiceForm();
         refreshClientPicker();
+        showPage('invoice');
         showToast('➕ New Invoice');
     });
 }
