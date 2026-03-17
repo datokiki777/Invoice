@@ -64,6 +64,26 @@ const LOGO_SVG = {
 // COMPANY HELPERS
 // =========================================
 
+ // ===== BACKUP MENU =====
+
+function toggleBackupMenu() {
+    const menu = document.getElementById('backup-menu');
+    menu.classList.toggle('show');
+}
+
+function closeBackupMenu() {
+    const menu = document.getElementById('backup-menu');
+    menu.classList.remove('show');
+}
+
+// close menu როცა გარეთ დააჭერ
+document.addEventListener('click', function (e) {
+    const wrap = document.querySelector('.backup-menu-wrap');
+    if (!wrap.contains(e.target)) {
+        closeBackupMenu();
+    }
+});
+
 function getLogoPath(company) {
     if (!company) return LOGO_SVG.shared1;
     const key = company.logoKey || 'shared1';
@@ -703,7 +723,13 @@ window.onload = function () {
     renderInvoiceForm();
     renderHistory();
     renderClients();
+    toggleClientForm(false);
     renderCompanies();
+    if (noCompanies) {
+    toggleCompanyForm(true);
+} else {
+    toggleCompanyForm(false);
+}
     refreshClientPicker();
     refreshNavCompanyPicker();
     refreshOwnerLogoOptionText();
@@ -749,6 +775,7 @@ window.onload = function () {
 // =========================================
 // PAGE NAVIGATION
 // =========================================
+
 function showPage(name) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -761,6 +788,7 @@ function showPage(name) {
 
     if (name === 'history') renderHistory();
     if (name === 'clients') renderClients();
+    if (name === 'companies') renderCompanies();
 }
 
 // =========================================
@@ -776,18 +804,24 @@ function renderInvoiceForm() {
     document.getElementById('my_phone').value = co.phone || '';
     document.getElementById('my_email').value = co.email || '';
     document.getElementById('my_website').value = co.website || '';
-    document.getElementById('bank_recip').value = co.bankRecip || '';
-    document.getElementById('bank_name').value = co.bankName || '';
-    document.getElementById('bank_iban').value = co.bankIban || '';
-    document.getElementById('bank_bic').value = co.bankBic || '';
+
+    const bankRecipValue = ci.bankRecip !== undefined ? ci.bankRecip : (co.bankRecip || '');
+    const bankNameValue = ci.bankName !== undefined ? ci.bankName : (co.bankName || '');
+    const bankIbanValue = ci.bankIban !== undefined ? ci.bankIban : (co.bankIban || '');
+    const bankBicValue = ci.bankBic !== undefined ? ci.bankBic : (co.bankBic || '');
+
+    document.getElementById('bank_recip').value = bankRecipValue;
+    document.getElementById('bank_name').value = bankNameValue;
+    document.getElementById('bank_iban').value = bankIbanValue;
+    document.getElementById('bank_bic').value = bankBicValue;
 
     // Sync print spans so bank details always show on print
     const bankPrintMap = {
-        bank_recip_span: co.bankRecip,
-        bank_name_span:  co.bankName,
-        bank_iban_span:  co.bankIban,
-        bank_bic_span:   co.bankBic
-    };
+        bank_recip_span: bankRecipValue,
+        bank_name_span: bankNameValue,
+        bank_iban_span: bankIbanValue,
+        bank_bic_span: bankBicValue
+};
     Object.entries(bankPrintMap).forEach(([id, val]) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val || '';
@@ -953,25 +987,6 @@ function calculateAll() {
 }
 
 function saveAllData() {
-    const company = getCurrentCompany();
-    if (!company) return;
-
-    company.name = document.getElementById('my_comp_name').value;
-    company.reg = document.getElementById('my_reg_no').value;
-    company.addr = document.getElementById('my_addr').value;
-    company.phone = document.getElementById('my_phone').value;
-    company.email = document.getElementById('my_email').value;
-    company.website = document.getElementById('my_website').value;
-    company.bankRecip = document.getElementById('bank_recip').value;
-    company.bankName = document.getElementById('bank_name').value;
-    company.bankIban = document.getElementById('bank_iban').value;
-    company.bankBic = document.getElementById('bank_bic').value;
-
-    const s1 = document.getElementById('bank_recip_span'); if (s1) s1.textContent = company.bankRecip;
-    const s2 = document.getElementById('bank_name_span');  if (s2) s2.textContent = company.bankName;
-    const s3 = document.getElementById('bank_iban_span');  if (s3) s3.textContent = company.bankIban;
-    const s4 = document.getElementById('bank_bic_span');   if (s4) s4.textContent = company.bankBic;
-
     COMPANY_DATA.currentInvoice.num = document.getElementById('inv_num').value;
     COMPANY_DATA.currentInvoice.date = document.getElementById('inv_date').value;
     COMPANY_DATA.currentInvoice.client = document.getElementById('client_info').value;
@@ -1097,16 +1112,6 @@ function loadInvoiceFromHistory(index) {
 
     delete loaded.savedAt;
 
-    // Restore snapshotted bank details into the active company so they show in the form
-    const co = getCurrentCompany();
-    if (co) {
-        if (loaded.bankRecip !== undefined) co.bankRecip = loaded.bankRecip;
-        if (loaded.bankName  !== undefined) co.bankName  = loaded.bankName;
-        if (loaded.bankIban  !== undefined) co.bankIban  = loaded.bankIban;
-        if (loaded.bankBic   !== undefined) co.bankBic   = loaded.bankBic;
-        saveGlobalData();
-    }
-
     COMPANY_DATA.currentInvoice = loaded;
 
     if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
@@ -1127,20 +1132,7 @@ function printInvoiceFromHistory(index) {
 
     // Temporarily swap in the selected invoice
     const previousInvoice = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
-    const previousBankRecip = getCurrentCompany()?.bankRecip;
-    const previousBankName  = getCurrentCompany()?.bankName;
-    const previousBankIban  = getCurrentCompany()?.bankIban;
-    const previousBankBic   = getCurrentCompany()?.bankBic;
-
-    // Restore bank snapshot from saved invoice into company (for renderInvoiceForm)
-    const co = getCurrentCompany();
-    if (co) {
-        if (inv.bankRecip !== undefined) co.bankRecip = inv.bankRecip;
-        if (inv.bankName  !== undefined) co.bankName  = inv.bankName;
-        if (inv.bankIban  !== undefined) co.bankIban  = inv.bankIban;
-        if (inv.bankBic   !== undefined) co.bankBic   = inv.bankBic;
-    }
-
+   
     COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(inv));
     if (!COMPANY_DATA.currentInvoice.items || !COMPANY_DATA.currentInvoice.items.length) {
         COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
@@ -1161,12 +1153,7 @@ function printInvoiceFromHistory(index) {
         // Restore previous state after print dialog closes
         setTimeout(() => {
             COMPANY_DATA.currentInvoice = previousInvoice;
-            if (co) {
-                if (previousBankRecip !== undefined) co.bankRecip = previousBankRecip;
-                if (previousBankName  !== undefined) co.bankName  = previousBankName;
-                if (previousBankIban  !== undefined) co.bankIban  = previousBankIban;
-                if (previousBankBic   !== undefined) co.bankBic   = previousBankBic;
-            }
+         
             renderInvoiceForm();
             refreshClientPicker();
             showPage('history');
@@ -1209,36 +1196,31 @@ function newInvoice() {
     });
 }
 
-function clearEverything() {
-    const company = getCurrentCompany();
-
-    if (!company || !APP_DATA.currentCompanyId) {
-        showToast('⚠️ No company selected');
-        return;
-    }
-
-    confirmAction(
-        'Reset Current Company Data',
-        `Clear all invoices, clients and current invoice for "${company.name}"? Company profile will stay saved.`,
-        () => {
-            COMPANY_DATA = createEmptyCompanyData();
-            COMPANY_DATA.currentInvoice.num = new Date().getFullYear() + '-001';
-
-            saveCompanyData();
-            renderInvoiceForm();
-            renderHistory();
-            renderClients();
-            refreshClientPicker();
-            showPage('invoice');
-
-            showToast('🧹 Current company data cleared');
-        }
-    );
-}
-
 // =========================================
 // CLIENTS
 // =========================================
+
+  function toggleClientForm(forceOpen = null) {
+    const card = document.getElementById('client-form-card');
+    const body = document.getElementById('client-form-body');
+    const toggle = document.getElementById('client-form-toggle');
+
+    if (!card || !body || !toggle) return;
+
+    const isCollapsed = card.classList.contains('collapsed');
+    const shouldOpen = forceOpen !== null ? forceOpen : isCollapsed;
+
+    if (shouldOpen) {
+        card.classList.remove('collapsed');
+        body.style.display = 'block';
+        toggle.textContent = '▾';
+    } else {
+        card.classList.add('collapsed');
+        body.style.display = 'none';
+        toggle.textContent = '▸';
+    }
+}
+
 function saveClient() {
     const name = document.getElementById('new_client_name').value.trim();
     if (!name) {
@@ -1286,6 +1268,7 @@ function editClient(id) {
         document.getElementById('new_client_note').value = c.note || '';
         document.getElementById('client-form-title').innerText = 'Edit Client';
         document.getElementById('cancel-edit-btn').style.display = 'flex';
+        toggleClientForm(true);
         document.getElementById('new_client_name').focus();
         document.getElementById('new_client_name').scrollIntoView({ behavior: 'smooth' });
     });
@@ -1305,6 +1288,7 @@ function clearClientForm() {
     document.getElementById('new_client_note').value = '';
     document.getElementById('client-form-title').innerText = 'New Client';
     document.getElementById('cancel-edit-btn').style.display = 'none';
+    toggleClientForm(false);
 }
 
 function deleteClient(id) {
@@ -1334,6 +1318,7 @@ function useClientForInvoice(id) {
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
     saveAppData();
+    renderClients();
     showPage('invoice');
     showToast('👤 Client added to invoice');
 }
@@ -1348,7 +1333,7 @@ function renderClients() {
     }
 
     grid.innerHTML = companyClients.map(c => `
-        <div class="client-card">
+    <div class="client-card ${COMPANY_DATA.currentInvoice.clientId === c.id ? 'active-client-card' : ''}">
             <div class="client-name">${esc(c.name)}</div>
             <div class="client-detail">${[c.reg, c.addr, c.email, c.phone].filter(Boolean).map(esc).join('\n')}</div>
             ${c.note ? `<div style="font-size:12px;color:#a0aec0;margin-top:6px;font-style:italic">${esc(c.note)}</div>` : ''}
@@ -1402,12 +1387,34 @@ function fillClientFromPicker() {
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
     saveAppData();
+    renderClients();
     showToast('👤 ' + c.name);
 }
 
   // =========================================
 // COMPANIES
 // =========================================
+
+  function toggleCompanyForm(forceOpen = null) {
+    const card = document.getElementById('company-form-card');
+    const body = document.getElementById('company-form-body');
+    const toggle = document.getElementById('company-form-toggle');
+
+    if (!card || !body || !toggle) return;
+
+    const isCollapsed = card.classList.contains('collapsed');
+    const shouldOpen = forceOpen !== null ? forceOpen : isCollapsed;
+
+    if (shouldOpen) {
+        card.classList.remove('collapsed');
+        body.style.display = 'block';
+        toggle.textContent = '▾';
+    } else {
+        card.classList.add('collapsed');
+        body.style.display = 'none';
+        toggle.textContent = '▸';
+    }
+}
 
 function saveCompany() {
     const name = document.getElementById('new_company_name').value.trim();
@@ -1560,6 +1567,7 @@ function editCompany(id) {
         refreshOwnerLogoOptionText();
         refreshLogoHelpText();
         refreshUnlockLogoButton();
+        toggleCompanyForm(true);
 
         document.getElementById('new_company_name').focus();
         document.getElementById('new_company_name').scrollIntoView({ behavior: 'smooth' });
@@ -1589,6 +1597,7 @@ function clearCompanyForm() {
     refreshOwnerLogoOptionText();
     refreshLogoHelpText();
     refreshUnlockLogoButton();
+    toggleCompanyForm(false);
 }
 
 function deleteCompany(id) {
@@ -1869,14 +1878,14 @@ function applyLang() {
     const btn = document.getElementById('lang-toggle');
 
     if (btn) {
-        if (currentLang === 'de') {
-            btn.textContent = '🇩🇪 DE';
-            btn.title = 'Switch to English';
-        } else {
-            btn.textContent = '🇬🇧 EN';
-            btn.title = 'Switch to German';
-        }
+    if (currentLang === 'de') {
+        btn.textContent = '🇩🇪';
+        btn.title = 'Switch to English';
+    } else {
+        btn.textContent = '🇬🇧';
+        btn.title = 'Switch to German';
     }
+}
 
     const iw = document.querySelector('.invoice-word');
     if (iw) iw.textContent = L.invoiceWord;
@@ -1945,4 +1954,100 @@ function updateVatLabel() {
     if (vatTextInput) vatBox.appendChild(vatTextInput);
 
     refreshVatVisibility();
+}
+
+ // ===== EXPORT FULL BACKUP =====
+
+function exportFullBackup() {
+    try {
+        const backup = {
+            type: "invoice_app_backup",
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            data: localStorage
+        };
+
+        const json = JSON.stringify(backup, null, 2);
+
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `invoice-backup-${date}.json`;
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+
+        closeBackupMenu();
+        showToast("📦 Backup exported");
+
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Export failed");
+    }
+}
+
+ // ===== IMPORT FULL BACKUP =====
+
+function startImportBackup() {
+    closeBackupMenu();
+    const input = document.getElementById('backup-file-input');
+    if (!input) return;
+    input.value = '';
+    input.click();
+}
+
+function handleImportFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        try {
+            const text = e.target.result;
+            const backup = JSON.parse(text);
+
+            if (!backup || backup.type !== 'invoice_app_backup' || !backup.data) {
+                showToast('❌ Invalid backup file');
+                return;
+            }
+
+            confirmAction(
+                'Import Backup',
+                'Import will replace all current app data. Continue?',
+                () => {
+                    try {
+                        // Clear current storage
+                        localStorage.clear();
+
+                        // Restore all keys
+                        Object.keys(backup.data).forEach(key => {
+                            localStorage.setItem(key, backup.data[key]);
+                        });
+
+                        showToast('✅ Backup imported');
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } catch (err) {
+                        console.error(err);
+                        showToast('❌ Import failed');
+                    }
+                }
+            );
+        } catch (err) {
+            console.error(err);
+            showToast('❌ Invalid JSON file');
+        }
+    };
+
+    reader.readAsText(file);
 }
