@@ -1084,23 +1084,30 @@ function renderHistory() {
 
         return `
         <div class="history-card ${isCurrent ? 'current' : ''}">
-            <div>
+            <div class="hist-left">
                 <div class="hist-num">${esc(inv.num)}</div>
                 <div class="hist-client">${esc(clientName)}</div>
                 <div class="hist-meta">📅 ${esc(inv.date)}</div>
+
                 <div class="hist-actions">
                     <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
                     <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
                     <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
                 </div>
             </div>
+
             <div class="hist-right">
-                <div class="hist-amount">€${total.toFixed(2)}</div>
-                <div class="hist-subtotal">Subtotal: €${subtotal.toFixed(2)}</div>
+                <div class="hist-subtotal">€${subtotal.toFixed(2)}</div>
                 <div class="hist-date">${savedDate ? 'Saved: ' + savedDate : ''}</div>
+
                 <span class="hist-badge ${isCurrent ? 'badge-current' : 'badge-saved'}">
                     ${isCurrent ? '● Current' : '✓ Saved'}
                 </span>
+
+                <div class="hist-total-block">
+                    <div class="hist-total-label">TOTAL</div>
+                    <div class="hist-amount">€${total.toFixed(2)}</div>
+                </div>
             </div>
         </div>`;
     }).join('');
