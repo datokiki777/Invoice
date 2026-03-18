@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v2.3.0';
+const CACHE_NAME = 'invoice-pwa-v2.3.5';
 
 const APP_SHELL = [
   './',
@@ -10,23 +10,27 @@ const APP_SHELL = [
   './icon-512.png'
 ];
 
-// Install: preload app shell
+// Install: preload ONLY this version's app shell into this version's cache
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
+  // აქ intentionally skipWaiting არ არის
 });
 
-// Activate: remove old caches
+// Activate: remove old caches only after this SW becomes active
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    )
+    Promise.all([
+      caches.keys().then(keys =>
+        Promise.all(
+          keys
+            .filter(key => key !== CACHE_NAME)
+            .map(key => caches.delete(key))
+        )
+      ),
+      self.clients.claim()
+    ])
   );
 });
 
@@ -36,10 +40,13 @@ function isAppShellRequest(request) {
 
   return (
     request.mode === 'navigate' ||
+    url.pathname.endsWith('/') ||
     url.pathname.endsWith('/index.html') ||
     url.pathname.endsWith('/style.css') ||
     url.pathname.endsWith('/app.js') ||
-    url.pathname.endsWith('/manifest.json')
+    url.pathname.endsWith('/manifest.json') ||
+    url.pathname.endsWith('/icon-192.png') ||
+    url.pathname.endsWith('/icon-512.png')
   );
 }
 
@@ -48,8 +55,8 @@ function isCacheableRequest(request) {
 }
 
 // Fetch strategy:
-// - HTML/CSS/JS/manifest => network first
-// - other same-origin files => cache first
+// APP SHELL => CACHE ONLY from active SW cache
+// other same-origin files => cache first, then network fallback
 self.addEventListener('fetch', event => {
   const { request } = event;
 
@@ -57,16 +64,20 @@ self.addEventListener('fetch', event => {
 
   if (isAppShellRequest(request)) {
     event.respondWith(
-      fetch(request)
-        .then(networkResponse => {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-          return networkResponse;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || caches.match('./index.html');
-        })
+      caches.open(CACHE_NAME).then(async cache => {
+        const cached = await cache.match(request);
+
+        if (cached) return cached;
+
+        // fallback for navigation aliases like "/" -> "./index.html"
+        if (request.mode === 'navigate') {
+          const fallbackIndex = await cache.match('./index.html');
+          if (fallbackIndex) return fallbackIndex;
+        }
+
+        // only if something was not precached for some reason
+        return fetch(request);
+      })
     );
     return;
   }
