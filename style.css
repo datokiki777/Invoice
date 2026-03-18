@@ -31,12 +31,12 @@ body {
 
 .top-nav {
     background: linear-gradient(135deg, #0d3d7a 0%, #1a5cad 100%);
-    padding: 8px 12px;
-    display: flex;
+    padding: 8px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: flex-end;
     min-height: 66px;
-    gap: 0;
+    gap: 10px;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -61,12 +61,23 @@ body {
     flex-shrink: 0;
 }
 
+.top-nav-left {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.top-nav-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
 .top-nav-right {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    min-width: 0;
+    justify-content: flex-end;
 }
 
 .nav-tabs {
@@ -122,17 +133,32 @@ body {
     background: rgba(255,255,255,0.14);
     border: 1.5px solid rgba(255,255,255,0.30);
     color: white;
-    border-radius: 18px;
-    padding: 9px 14px;
-    min-height: 44px;
-    font-size: 14px;
-    font-weight: 700;
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-height: 46px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
     font-family: 'DM Sans', sans-serif;
     transition: all 0.22s ease;
     white-space: nowrap;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.lang-flag {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.lang-code {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
 }
 
 .lang-toggle:hover {
@@ -195,16 +221,15 @@ body {
     background: rgba(255,255,255,0.14);
     border: 1.5px solid rgba(255,255,255,0.32);
     color: white;
-    border-radius: 18px;
+    border-radius: 12px;
     padding: 10px 16px;
     min-height: 46px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     font-family: 'DM Sans', sans-serif;
-    flex: 1;
-    min-width: 0;
-    max-width: 220px;
+    width: 180px;
+    max-width: 200px;
     appearance: none;
     -webkit-appearance: none;
     outline: none;
@@ -1756,20 +1781,29 @@ textarea.form-input {
         font-size: 12px;
     }
 
+    .nav-company-select {
+        flex: 2;
+        min-width: 120px;
+        font-size: 14px;
+        padding: 8px 12px;
+        min-height: 42px;
+    }
+    
     .lang-toggle {
-    padding: 8px 10px;
-    min-height: 42px;
-    font-size: 13px;
-    flex-shrink: 0;
-}
-
- .nav-company-select {
-    flex: 1;
-    max-width: 140px;
-    min-width: 0;
-    min-height: 42px;
-    padding: 8px 12px;
-    font-size: 14px;
+        padding: 8px 10px;
+        min-height: 42px;
+    }
+    
+    .lang-toggle .lang-code {
+        display: inline;  /* მობილურზეც აჩვენე EN/DE */
+        font-size: 13px;
+    }
+    
+    .backup-toggle {
+        height: 42px;
+        min-width: 42px;
+        font-size: 20px;
+    }
 }
 
 .nav-tab span {
@@ -1987,27 +2021,53 @@ textarea.form-input {
     padding: 6px 12px;
 }
 
+   /* ქვედა ტაბების გაუმჯობესება */
+.bottom-nav {
+    padding: 6px 4px calc(8px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 20px rgba(13, 61, 122, 0.10);
 }
+
+.bottom-nav-icon {
+    font-size: 21px;
+}
+
+.bottom-nav-label {
+    font-size: 10px;
+}
+
+.bottom-nav-item {
+    min-height: 56px;
+    border-radius: 14px;
+}
+
+.bottom-nav-item.active {
+    background: linear-gradient(180deg, rgba(13, 61, 122, 0.11) 0%, rgba(13, 61, 122, 0.06) 100%);
+    transform: translateY(-1px);
+}
+
 
 /* ===== iOS INSTALL BANNER ===== */
 
 .ios-banner {
+	display: none;
+    pointer-events: none;
+    display: none;
     position: fixed;
-    bottom: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     background: white;
     border-top: 1px solid var(--border);
     border-radius: 20px 20px 0 0;
     padding: 20px 22px 32px;
     z-index: 500;
     box-shadow: 0 -8px 32px rgba(13,61,122,0.15);
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .ios-banner.show {
-    transform: translateY(0);
+	display: block;
+    pointer-events: auto;
+    display: block;
 }
 
 .ios-banner-top {
@@ -2362,10 +2422,8 @@ body.pdf-mode .ios-banner {
 .top-tools {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-shrink: 1;
-    min-width: 0;
-    max-width: 100%;
+    gap: 10px;
+    width: 100%;
 }
 
 .backup-menu-wrap {
@@ -2377,24 +2435,21 @@ body.pdf-mode .ios-banner {
 /* ===== BACKUP BUTTON ===== */
 
 .backup-toggle {
-    height: 40px;
-    min-width: 40px;
+    height: 46px;
+    min-width: 46px;
     padding: 0;
     border-radius: 12px;
-
     background: linear-gradient(135deg, #1a5cad, #0d3d7a);
     color: #ffffff;
-
     border: 1px solid rgba(255,255,255,0.25);
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
-
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-
     box-shadow: 0 6px 14px rgba(13, 61, 122, 0.35);
+    flex-shrink: 0;
 }
 
 .backup-toggle:active {
@@ -2476,4 +2531,132 @@ body.pdf-mode .ios-banner {
     color: #d9534f;
     background: #fff6f6;
     border-color: #f3d1d1;
+}
+
+/* ===== BOTTOM NAVIGATION FOR MOBILE ===== */
+
+.bottom-nav {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(13, 61, 122, 0.08);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index: 90;
+    box-shadow: 0 -8px 24px rgba(13, 61, 122, 0.10);
+}
+
+.bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 58px;
+    margin: 0 3px;
+    padding: 8px 4px 7px;
+    background: transparent;
+    border: none;
+    border-radius: 16px;
+    color: #8a9bb5;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    position: relative;
+}
+
+.bottom-nav-item.active {
+    color: var(--primary);
+    background: linear-gradient(180deg, rgba(13, 61, 122, 0.10) 0%, rgba(13, 61, 122, 0.06) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    transform: translateY(-1px);
+    font-weight: 700;
+}
+
+.bottom-nav-item.active::after {
+    display: none;
+    content: none;
+}
+
+.bottom-nav-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin: 0;
+}
+
+.bottom-nav-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    line-height: 1.1;
+}
+
+.bottom-nav-item:hover:not(.active) {
+    background: rgba(13, 61, 122, 0.04);
+    color: var(--primary-light);
+}
+
+.bottom-nav-item:active {
+    transform: scale(0.97);
+}
+
+/* Mobile styles */
+@media (max-width: 640px) {
+    .bottom-nav {
+        display: flex;
+    }
+    
+    .nav-tabs {
+        display: none !important;
+    }
+    
+    /* დაამატე padding ბოლოში რომ კონტენტი არ დაიფაროს */
+    .page {
+        padding-bottom: 80px;
+    }
+}
+
+/* ===== EXTRA POLISH ===== */
+
+/* ანიმაცია ტაბებისთვის */
+.nav-tab, .bottom-nav-item, .lang-toggle, .backup-toggle {
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-tab:active, .bottom-nav-item:active, .lang-toggle:active, .backup-toggle:active {
+    transform: scale(0.96);
+}
+
+/* კომპანიის სელექტის ისარი */
+.nav-company-select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+/* დროშის ანიმაცია */
+.lang-toggle:hover .lang-flag {
+    transform: scale(1.1);
+}
+
+/* ბექაფ მენიუს პატარა გაუმჯობესება */
+.backup-menu {
+    animation: slideDown 0.15s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

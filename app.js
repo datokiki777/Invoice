@@ -25,7 +25,7 @@ let COMPANY_DATA = {
         date: '',
         client: '',
         clientId: '',
-        vatRate: 21,
+        vatRate: 0,
         vatText: '',
         items: [{ desc: '', qty: 1, price: 0 }]
     }
@@ -117,7 +117,7 @@ function createEmptyCompanyData() {
             date: getCurrentDate(),
             client: '',
             clientId: '',
-            vatRate: 21,
+            vatRate: 0,
             vatText: '',
             items: [{ desc: '', qty: 1, price: 0 }]
         }
@@ -279,7 +279,7 @@ function loadCompanyData(id) {
             date: getCurrentDate(),
             client: '',
             clientId: '',
-            vatRate: 21,
+            vatRate: 0,
             vatText: '',
             items: [{ desc: '', qty: 1, price: 0 }]
         };
@@ -386,6 +386,14 @@ function isIOS() {
     return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
+function isIOSSafari() {
+    const ua = navigator.userAgent;
+    const isIos = /iphone|ipad|ipod/i.test(ua);
+    // Safari on iOS has 'Safari' but NOT 'CriOS' (Chrome) or 'FxiOS' (Firefox) or 'EdgiOS'
+    const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua);
+    return isIos && isSafari;
+}
+
 function isInStandaloneMode() {
     return window.navigator.standalone === true ||
         window.matchMedia('(display-mode: standalone)').matches;
@@ -394,36 +402,60 @@ function isInStandaloneMode() {
 function showInstallUI() {
     if (isInStandaloneMode()) return;
 
-    if (isIOS()) {
-        if (!sessionStorage.getItem('ios_banner_dismissed')) {
-            const banner = document.getElementById('ios-banner');
-            if (banner) banner.classList.add('show');
-        }
-        return;
-    }
-
-    if (deferredPrompt) {
-        const sheet = document.getElementById('install-sheet');
-        const overlay = document.getElementById('install-sheet-overlay');
-        if (sheet) sheet.classList.add('show');
-        if (overlay) {
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'auto';
-        }
-    }
-}
-
-function hideInstallUI() {
+    const banner = document.getElementById('ios-banner');
     const sheet = document.getElementById('install-sheet');
     const overlay = document.getElementById('install-sheet-overlay');
+
+    if (banner) banner.classList.remove('show');
     if (sheet) sheet.classList.remove('show');
     if (overlay) {
         overlay.style.opacity = '0';
         overlay.style.pointerEvents = 'none';
     }
 
+    if (isIOSSafari()) {
+    if (!sessionStorage.getItem('ios_banner_dismissed')) {
+        if (banner) {
+            banner.hidden = false;
+            banner.classList.add('show');
+        }
+    }
+    return;
+}
+
+    if (deferredPrompt) {
+    if (sheet) {
+        sheet.hidden = false;
+        sheet.classList.add('show');
+    }
+    if (overlay) {
+        overlay.hidden = false;
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'auto';
+    }
+}
+}
+
+function hideInstallUI() {
+    const sheet = document.getElementById('install-sheet');
+    const overlay = document.getElementById('install-sheet-overlay');
     const banner = document.getElementById('ios-banner');
-    if (banner) banner.classList.remove('show');
+
+    if (sheet) {
+        sheet.classList.remove('show');
+        sheet.hidden = true;
+    }
+
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        overlay.hidden = true;
+    }
+
+    if (banner) {
+        banner.classList.remove('show');
+        banner.hidden = true;
+    }
 }
 
 function dismissInstallSheet() {
@@ -433,7 +465,10 @@ function dismissInstallSheet() {
 
 function dismissIOSBanner() {
     const banner = document.getElementById('ios-banner');
-    if (banner) banner.classList.remove('show');
+    if (banner) {
+        banner.classList.remove('show');
+        banner.hidden = true;
+    }
     sessionStorage.setItem('ios_banner_dismissed', '1');
 }
 
@@ -477,7 +512,7 @@ function initPWA() {
         showToast('✅ App installed!');
     });
 
-    if (isIOS() && !isInStandaloneMode() && !sessionStorage.getItem('ios_banner_dismissed')) {
+    if (isIOSSafari() && !isInStandaloneMode() && !sessionStorage.getItem('ios_banner_dismissed')) {
         setTimeout(() => {
             showInstallUI();
         }, 1400);
@@ -779,12 +814,15 @@ window.onload = function () {
 function showPage(name) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav-item').forEach(t => t.classList.remove('active'));
 
     const page = document.getElementById('page-' + name);
     const tab = document.getElementById('tab-' + name);
+    const bottomTab = document.querySelector(`.bottom-nav-item[data-page="${name}"]`);
 
     if (page) page.classList.add('active');
     if (tab) tab.classList.add('active');
+    if (bottomTab) bottomTab.classList.add('active');
 
     if (name === 'history') renderHistory();
     if (name === 'clients') renderClients();
@@ -830,7 +868,7 @@ function renderInvoiceForm() {
     document.getElementById('inv_num').value = ci.num || '';
     document.getElementById('inv_date').value = ci.date || '';
     document.getElementById('client_info').value = ci.client || '';
-    document.getElementById('vat_rate').value = (ci.vatRate != null) ? ci.vatRate : 21;
+    document.getElementById('vat_rate').value = (ci.vatRate != null) ? ci.vatRate : 0;
     document.getElementById('vat_text').value = ci.vatText || '';
 
     if (!ci.items || !Array.isArray(ci.items) || ci.items.length === 0) {
@@ -1006,6 +1044,12 @@ function saveAllData() {
 // =========================================
 
  function saveInvoiceToHistory() {
+ 	// შეცდომების შემოწმება
+const errors = validateInvoiceBeforeSave();
+if (errors.length > 0) {
+    showToast(errors[0]);
+    return;
+}
     const company = getCurrentCompany();
     if (!company) {
         showToast('⚠️ No company selected');
@@ -1032,6 +1076,10 @@ function saveAllData() {
     }
 
     const invoiceCopy = JSON.parse(JSON.stringify(ci));
+    // მნიშვნელოვანი: clientId-ს შენახვა
+    const clientId = document.getElementById('client_picker')?.value || 
+                 COMPANY_DATA.currentInvoice.clientId || '';
+    invoiceCopy.clientId = clientId; // დარწმუნდი რომ clientId არის
 
     invoiceCopy.savedAt = new Date().toISOString();
 
@@ -1050,6 +1098,8 @@ function saveAllData() {
         COMPANY_DATA.invoices.unshift(invoiceCopy);
         showToast('✅ Invoice saved');
     }
+    COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(invoiceCopy));
+    delete COMPANY_DATA.currentInvoice.savedAt;
 
     saveAppData();
     renderHistory();
@@ -1075,7 +1125,11 @@ function renderHistory() {
         const vat = subtotal * ((parseFloat(inv.vatRate) || 0) / 100);
         const total = subtotal + vat;
 
-        const isCurrent = inv.num === COMPANY_DATA.currentInvoice.num;
+        const isCurrent =
+        inv.num === COMPANY_DATA.currentInvoice.num &&
+       JSON.stringify(inv.items || []) === JSON.stringify(COMPANY_DATA.currentInvoice.items || []) &&
+       (inv.client || '') === (COMPANY_DATA.currentInvoice.client || '') &&
+       (inv.date || '') === (COMPANY_DATA.currentInvoice.date || '');
         const clientName = (inv.client || '').split('\n')[0] || 'No client';
 
         const savedDate = inv.savedAt
@@ -1124,6 +1178,14 @@ function loadInvoiceFromHistory(index) {
     if (!COMPANY_DATA.currentInvoice.items || COMPANY_DATA.currentInvoice.items.length === 0) {
         COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
     }
+    
+    // აღადგინე clientId client_picker-ში
+    if (loaded.clientId) {
+    const picker = document.getElementById('client_picker');
+    if (picker) {
+        picker.value = loaded.clientId;
+    }
+}
 
     saveAppData();
     renderInvoiceForm();
@@ -1190,7 +1252,7 @@ function newInvoice() {
             date: getCurrentDate(),
             client: '',
             clientId: '',
-            vatRate: 21,
+            vatRate: 0,
             vatText: '',
             items: [{ desc: '', qty: 1, price: 0 }]
         };
@@ -1382,7 +1444,12 @@ function fillClientFromPicker() {
     }
 
     const c = COMPANY_DATA.clients.find(cl => cl.id === id);
-    if (!c) return;
+      if (!c) {
+    // შეცდომა: ასეთი ID არ არსებობს
+    document.getElementById('client_picker').value = '';
+    showToast('⚠️ Selected client not found');
+    return;
+}
 
     let info = c.name;
     if (c.reg) info += '\n' + c.reg;
@@ -1885,13 +1952,11 @@ function applyLang() {
     const btn = document.getElementById('lang-toggle');
 
     if (btn) {
-    if (currentLang === 'de') {
-        btn.textContent = '🇩🇪';
-        btn.title = 'Switch to English';
-    } else {
-        btn.textContent = '🇬🇧';
-        btn.title = 'Switch to German';
-    }
+    const flag = currentLang === 'de' ? '🇩🇪' : '🇬🇧';
+    const code = currentLang === 'de' ? 'DE' : 'EN';
+    
+    btn.innerHTML = `<span class="lang-flag">${flag}</span><span class="lang-code">${code}</span>`;
+    btn.title = currentLang === 'de' ? 'Switch to English' : 'Switch to German';
 }
 
     const iw = document.querySelector('.invoice-word');
@@ -2057,4 +2122,95 @@ function handleImportFile(event) {
     };
 
     reader.readAsText(file);
+}
+
+// ===== ERROR PREVENTION FUNCTIONS =====
+
+function validateVatRate(input) {
+    const raw = input.value.trim();
+
+    if (raw === '') {
+        input.value = '';
+        COMPANY_DATA.currentInvoice.vatRate = 0;
+        saveAppData();
+        return;
+    }
+
+    let val = parseFloat(raw);
+
+    if (isNaN(val)) {
+        input.value = '';
+        COMPANY_DATA.currentInvoice.vatRate = 0;
+        saveAppData();
+        return;
+    }
+
+    if (val < 0) {
+        val = 0;
+        showToast('⚠️ VAT rate cannot be negative');
+    } else if (val > 100) {
+        val = 100;
+        showToast('⚠️ VAT rate maximum is 100%');
+    }
+
+    input.value = String(val);
+    COMPANY_DATA.currentInvoice.vatRate = val;
+    saveAppData();
+}
+
+ function handleVatInput(input) {
+    // აკრეფის დროს მივუშვათ ცარიელი მნიშვნელობაც,
+    // რომ 0 არ ჩაისვას წინ ავტომატურად
+    const raw = input.value.trim();
+
+    if (raw === '') {
+        COMPANY_DATA.currentInvoice.vatRate = 0;
+        calculateAll();
+        return;
+    }
+
+    const val = parseFloat(raw);
+
+    if (!isNaN(val)) {
+        COMPANY_DATA.currentInvoice.vatRate = val;
+    }
+
+    calculateAll();
+}
+
+function validateInvoiceBeforeSave() {
+    const errors = [];
+    
+    // 1. კლიენტის შემოწმება
+    if (!COMPANY_DATA.currentInvoice.client || !COMPANY_DATA.currentInvoice.client.trim()) {
+        errors.push('⚠️ Client information is required');
+    }
+    
+    // 2. ინვოისის ნომრის შემოწმება
+    if (!COMPANY_DATA.currentInvoice.num || !COMPANY_DATA.currentInvoice.num.trim()) {
+        errors.push('⚠️ Invoice number is required');
+    }
+    
+    // 3. VAT rate-ის შემოწმება (0-100)
+    const vatRateInput = document.getElementById('vat_rate');
+    if (vatRateInput) {
+        const vatRate = parseFloat(vatRateInput.value);
+        if (isNaN(vatRate) || vatRate < 0 || vatRate > 100) {
+            errors.push('⚠️ VAT rate must be between 0 and 100');
+        }
+    }
+    
+    // 4. Item-ების შემოწმება
+    const items = COMPANY_DATA.currentInvoice.items || [];
+    const hasValidItems = items.some(item => {
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        return qty > 0 && price > 0 && item.desc && item.desc.trim();
+    });
+    
+    if (!hasValidItems) {
+        errors.push('⚠️ Add at least one item with description, quantity and price');
+    }
+    
+    return errors;
 }

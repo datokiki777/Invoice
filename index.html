@@ -20,49 +20,60 @@
 <!-- TOP NAV -->
 
 <nav class="top-nav">
-    <div class="top-nav-right" style="width:100%">
-    <div class="top-tools">
+    <div class="top-nav-left"></div>
+
+    <div class="top-nav-center">
         <div class="backup-menu-wrap">
             <button class="backup-toggle" id="backup-toggle" onclick="toggleBackupMenu()" title="Import / Export">
                 ↔
             </button>
-
             <div class="backup-menu" id="backup-menu">
-              <button class="backup-menu-btn" onclick="startImportBackup()">⤓ Import</button>
-              <button class="backup-menu-btn" onclick="exportFullBackup()">⤒ Export</button>
-              <button class="backup-menu-btn backup-menu-cancel" onclick="closeBackupMenu()">✕ Cancel</button>
-           </div>
+                <button class="backup-menu-btn" onclick="startImportBackup()">⤓ Import</button>
+                <button class="backup-menu-btn" onclick="exportFullBackup()">⤒ Export</button>
+                <button class="backup-menu-btn backup-menu-cancel" onclick="closeBackupMenu()">✕ Cancel</button>
+            </div>
         </div>
 
-        <select class="nav-company-select nav-company-select-compact" id="nav_company_picker" onchange="switchCompany(this.value)" title="Active company">
+        <select class="nav-company-select" id="nav_company_picker" onchange="switchCompany(this.value)" title="Active company">
             <option value="">— Company —</option>
         </select>
 
         <div class="lang-wrap">
-            <button class="lang-toggle lang-toggle-compact" id="lang-toggle" onclick="toggleLang()" title="Switch invoice language">🇬🇧 EN</button>
+            <button class="lang-toggle" id="lang-toggle" onclick="toggleLang()" title="Switch invoice language">
+                <span class="lang-flag">🇬🇧</span>
+                <span class="lang-code">EN</span>
+            </button>
             <div class="lang-dropdown" id="lang-dropdown">
-                <button class="lang-option" onclick="selectLang('en')">🇬🇧 English</button>
-                <button class="lang-option" onclick="selectLang('de')">🇩🇪 Deutsch</button>
+                <button class="lang-option" onclick="selectLang('en')">
+                    <span class="lang-flag">🇬🇧</span> English
+                </button>
+                <button class="lang-option" onclick="selectLang('de')">
+                    <span class="lang-flag">🇩🇪</span> Deutsch
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="nav-tabs">
-            <button class="nav-tab active" onclick="showPage('invoice')" id="tab-invoice">
-                📄 <span>Invoice</span>
-            </button>
-            <button class="nav-tab" onclick="showPage('history')" id="tab-history">
-                🗂️ <span>History</span>
-            </button>
-            <button class="nav-tab" onclick="showPage('clients')" id="tab-clients">
-                👥 <span>Clients</span>
-            </button>
-            <button class="nav-tab" onclick="showPage('companies')" id="tab-companies">
-                🏢 <span>Companies</span>
-            </button>
-        </div>
-    </div>
+    <div class="top-nav-right"></div>
 </nav>
+
+<!-- ტაბები ცალკე, ქვემოთ -->
+<div class="tabs-container">
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showPage('invoice')" id="tab-invoice">
+            📄 <span>Invoice</span>
+        </button>
+        <button class="nav-tab" onclick="showPage('history')" id="tab-history">
+            🗂️ <span>History</span>
+        </button>
+        <button class="nav-tab" onclick="showPage('clients')" id="tab-clients">
+            👥 <span>Clients</span>
+        </button>
+        <button class="nav-tab" onclick="showPage('companies')" id="tab-companies">
+            🏢 <span>Companies</span>
+        </button>
+    </div>
+</div>
 
 <!-- INVOICE PAGE -->
 
@@ -176,7 +187,7 @@
                 <div class="summary-line" id="vat_summary_line">
                     <div class="summary-vat-label">
                         VAT (
-                        <input type="number" class="vat-rate-input" id="vat_rate" value="21" min="0" max="100" step="0.1" oninput="calculateAll();">
+                        <input type="number" class="vat-rate-input" id="vat_rate" value="0" min="0" max="100" step="0.1" oninput="handleVatInput(this)" onblur="validateVatRate(this); calculateAll();">
                         %)
                         <input type="text" class="vat-note-input" id="vat_text" placeholder="note..." oninput="saveAllData();">
                     </div>
@@ -486,7 +497,7 @@
 
 <!-- iOS Install Banner -->
 
-<div class="ios-banner" id="ios-banner">
+<div class="ios-banner" id="ios-banner" hidden>
     <button class="ios-banner-close" onclick="dismissIOSBanner()">✕</button>
     <div class="ios-banner-top">
         <div class="ios-app-icon">
@@ -576,5 +587,26 @@
  <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;" onchange="handleImportFile(event)">
 
 <script src="app.js"></script>
+
+ <!-- Bottom Navigation for Mobile -->
+<div class="bottom-nav no-print" id="bottom-nav">
+    <button class="bottom-nav-item active" onclick="showPage('invoice')" data-page="invoice">
+        <span class="bottom-nav-icon">📄</span>
+        <span class="bottom-nav-label">Invoice</span>
+    </button>
+    <button class="bottom-nav-item" onclick="showPage('history')" data-page="history">
+        <span class="bottom-nav-icon">🗂️</span>
+        <span class="bottom-nav-label">History</span>
+    </button>
+    <button class="bottom-nav-item" onclick="showPage('clients')" data-page="clients">
+        <span class="bottom-nav-icon">👥</span>
+        <span class="bottom-nav-label">Clients</span>
+    </button>
+    <button class="bottom-nav-item" onclick="showPage('companies')" data-page="companies">
+        <span class="bottom-nav-icon">🏢</span>
+        <span class="bottom-nav-label">Companies</span>
+    </button>
+</div>
+
 </body>
 </html>
