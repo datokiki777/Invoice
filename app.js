@@ -6,6 +6,7 @@ let swRegistration = null;
 let modalCallback = null;
 let currentLang = 'en';
 let userAcceptedUpdate = false;
+let clientHistoryOptions = [];
 
 // =========================================
 // DATA MODEL
@@ -78,9 +79,14 @@ function closeBackupMenu() {
 
 // close menu როცა გარეთ დააჭერ
 document.addEventListener('click', function (e) {
-    const wrap = document.querySelector('.backup-menu-wrap');
-    if (!wrap.contains(e.target)) {
+    const backupWrap = document.querySelector('.backup-menu-wrap');
+    if (backupWrap && !backupWrap.contains(e.target)) {
         closeBackupMenu();
+    }
+
+    const historyWrap = document.getElementById('client-history-container');
+    if (historyWrap && !historyWrap.contains(e.target)) {
+        closeClientHistoryDropdown();
     }
 });
 
@@ -154,8 +160,7 @@ function ensureCurrentCompany() {
 // =========================================
 
 function ensureLogoAccess(k) { return k || 'shared1'; }
-function refreshOwnerLogoOptionText() {}
-function refreshLogoHelpText() {}
+
 function refreshUnlockLogoButton() {
     const w = document.getElementById('unlock-logo-wrap');
     if (w) w.style.display = 'none';
@@ -767,8 +772,6 @@ window.onload = function () {
 }
     refreshClientPicker();
     refreshNavCompanyPicker();
-    refreshOwnerLogoOptionText();
-    refreshLogoHelpText();
     refreshUnlockLogoButton();
     initLogoFormForCompany(getCurrentCompany());
     applyLang();
@@ -1064,6 +1067,11 @@ if (errors.length > 0) {
 
     const ci = COMPANY_DATA.currentInvoice;
 
+    // შევინახოთ კლიენტის ბოლო description (პირველი item-ის desc)
+    if (ci.clientId && ci.items && ci.items[0] && ci.items[0].desc) {
+        saveClientLastDescription(ci.clientId, ci.items[0].desc);
+    }
+
     const hasAmountRow = (ci.items || []).some(item => {
         const qty = parseFloat(item.qty) || 0;
         const price = parseFloat(item.price) || 0;
@@ -1076,11 +1084,7 @@ if (errors.length > 0) {
     }
 
     const invoiceCopy = JSON.parse(JSON.stringify(ci));
-    // მნიშვნელოვანი: clientId-ს შენახვა
-    const clientId = document.getElementById('client_picker')?.value || 
-                 COMPANY_DATA.currentInvoice.clientId || '';
-    invoiceCopy.clientId = clientId; // დარწმუნდი რომ clientId არის
-
+    // clientId უკვე არის currentInvoice-ში, აღარ გვჭირდება დამატებითი შემოწმება
     invoiceCopy.savedAt = new Date().toISOString();
 
     // ბანკის მონაცემებიც შეინახოს snapshot-ად
@@ -1373,6 +1377,122 @@ function deleteClient(id) {
     });
 }
 
+// =========================================
+// CLIENT DESCRIPTION HISTORY
+// =========================================
+
+function saveClientLastDescription(clientId, description) {
+    if (!clientId || !description) return;
+    const client = COMPANY_DATA.clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    client.lastDescription = description;
+
+    if (!client.descriptionHistory) client.descriptionHistory = [];
+
+    if (client.descriptionHistory[0] !== description) {
+        client.descriptionHistory.unshift(description);
+        if (client.descriptionHistory.length > 3) {
+            client.descriptionHistory = client.descriptionHistory.slice(0, 3);
+        }
+    }
+
+    saveAppData();
+}
+
+function loadClientLastDescription(clientId) {
+    if (!clientId) return '';
+    const client = COMPANY_DATA.clients.find(c => c.id === clientId);
+    if (!client) return '';
+    return client.lastDescription || '';
+}
+
+function toggleClientHistoryDropdown() {
+    const wrap = document.getElementById('client-history-container');
+    if (!wrap || wrap.style.display === 'none') return;
+    wrap.classList.toggle('open');
+}
+
+function closeClientHistoryDropdown() {
+    const wrap = document.getElementById('client-history-container');
+    if (wrap) wrap.classList.remove('open');
+}
+
+function renderClientHistoryDropdown(options) {
+    clientHistoryOptions = Array.isArray(options) ? options : [];
+
+    const container = document.getElementById('client-history-container');
+    const menu = document.getElementById('client-history-menu');
+    const trigger = document.getElementById('client-history-trigger');
+
+    if (!container || !menu || !trigger) return;
+
+    closeClientHistoryDropdown();
+
+    if (!clientHistoryOptions.length) {
+        container.style.display = 'none';
+        menu.innerHTML = '';
+        return;
+    }
+
+    container.style.display = 'block';
+    trigger.querySelector('span').textContent = '📋 Load previous description...';
+
+    menu.innerHTML = clientHistoryOptions.map((text, index) => `
+        <button type="button" class="client-history-item" onclick="selectClientHistoryDescription(${index})">
+            <span class="client-history-text">${esc(text)}</span>
+        </button>
+    `).join('');
+}
+
+function selectClientHistoryDescription(index) {
+    const value = clientHistoryOptions[index];
+    if (!value) return;
+    loadDescriptionFromHistory(value);
+    closeClientHistoryDropdown();
+}
+
+function refreshDescriptionHistoryDropdown(clientId) {
+    const container = document.getElementById('client-history-container');
+    if (!container) return;
+
+    const client = (COMPANY_DATA.clients || []).find(c => c.id === clientId);
+
+    if (!client) {
+        renderClientHistoryDropdown([]);
+        return;
+    }
+
+    let descriptions = [];
+
+    if (Array.isArray(client.descriptionHistory)) {
+        descriptions = client.descriptionHistory
+            .map(x => String(x || '').trim())
+            .filter(Boolean);
+    }
+
+    if (client.lastDescription && String(client.lastDescription).trim()) {
+        const last = String(client.lastDescription).trim();
+        descriptions = [last, ...descriptions.filter(x => x !== last)];
+    }
+
+    renderClientHistoryDropdown(descriptions);
+}
+
+function loadDescriptionFromHistory(value) {
+    if (!value) return;
+
+    if (!COMPANY_DATA.currentInvoice.items || !COMPANY_DATA.currentInvoice.items.length) {
+        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
+    }
+
+    COMPANY_DATA.currentInvoice.items[0].desc = value;
+    renderItemRows();
+    calculateAll();
+    saveAppData();
+    showToast('📝 Description loaded');
+}
+
 function useClientForInvoice(id) {
     const c = COMPANY_DATA.clients.find(cl => cl.id === id);
     if (!c) return;
@@ -1386,9 +1506,18 @@ function useClientForInvoice(id) {
     COMPANY_DATA.currentInvoice.client = info;
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
+
+    // ბოლო description პირველ item-ში
+    const lastDesc = loadClientLastDescription(id);
+    if (lastDesc && COMPANY_DATA.currentInvoice.items && COMPANY_DATA.currentInvoice.items[0]) {
+        COMPANY_DATA.currentInvoice.items[0].desc = lastDesc;
+    }
+
     saveAppData();
     renderClients();
+    refreshDescriptionHistoryDropdown(id);
     showPage('invoice');
+    renderInvoiceForm();
     showToast('👤 Client added to invoice');
 }
 
@@ -1406,6 +1535,12 @@ function renderClients() {
             <div class="client-name">${esc(c.name)}</div>
             <div class="client-detail">${[c.reg, c.addr, c.email, c.phone].filter(Boolean).map(esc).join('\n')}</div>
             ${c.note ? `<div style="font-size:12px;color:#a0aec0;margin-top:6px;font-style:italic">${esc(c.note)}</div>` : ''}
+            ${c.lastDescription ? `
+            <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0;">
+                <div style="font-size:11px;font-weight:600;color:#4c6ef5;margin-bottom:2px;">📝 Last description:</div>
+                <div style="font-size:12px;color:#2d3748;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.lastDescription)}</div>
+            </div>
+            ` : ''}
             <div class="client-card-actions">
                 <button class="hist-btn hist-btn-load" onclick="useClientForInvoice('${c.id}')">📄 Use in Invoice</button>
                 <button class="hist-btn" style="background:#eef2ff;color:#4c6ef5;" onclick="editClient('${c.id}')">✏️ Edit</button>
@@ -1439,17 +1574,18 @@ function fillClientFromPicker() {
         COMPANY_DATA.currentInvoice.client = '';
         COMPANY_DATA.currentInvoice.clientId = '';
         document.getElementById('client_info').value = '';
+        const container = document.getElementById('client-history-container');
+        if (container) container.style.display = 'none';
         saveAppData();
         return;
     }
 
     const c = COMPANY_DATA.clients.find(cl => cl.id === id);
-      if (!c) {
-    // შეცდომა: ასეთი ID არ არსებობს
-    document.getElementById('client_picker').value = '';
-    showToast('⚠️ Selected client not found');
-    return;
-}
+    if (!c) {
+        document.getElementById('client_picker').value = '';
+        showToast('⚠️ Selected client not found');
+        return;
+    }
 
     let info = c.name;
     if (c.reg) info += '\n' + c.reg;
@@ -1460,8 +1596,17 @@ function fillClientFromPicker() {
     COMPANY_DATA.currentInvoice.client = info;
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
+
+    // ბოლო description პირველ item-ში (textarea-ში არ ჩაემატოს!)
+    const lastDesc = loadClientLastDescription(id);
+    if (lastDesc && COMPANY_DATA.currentInvoice.items && COMPANY_DATA.currentInvoice.items[0]) {
+        COMPANY_DATA.currentInvoice.items[0].desc = lastDesc;
+    }
+
+    refreshDescriptionHistoryDropdown(id);
     saveAppData();
     renderClients();
+    renderInvoiceForm();
     showToast('👤 ' + c.name);
 }
 
@@ -1554,7 +1699,6 @@ function saveCompany() {
     renderClients();
     refreshClientPicker();
     renderHistory();
-    refreshOwnerLogoOptionText();
     currentLang = company.lang || 'en';
     applyLang();
 
@@ -1638,8 +1782,6 @@ function editCompany(id) {
 
         document.getElementById('company-form-title').innerText = 'Edit Company';
         document.getElementById('cancel-company-edit-btn').style.display = 'flex';
-        refreshOwnerLogoOptionText();
-        refreshLogoHelpText();
         refreshUnlockLogoButton();
         toggleCompanyForm(true);
 
@@ -1668,8 +1810,6 @@ function clearCompanyForm() {
 
     document.getElementById('company-form-title').innerText = 'New Company';
     document.getElementById('cancel-company-edit-btn').style.display = 'none';
-    refreshOwnerLogoOptionText();
-    refreshLogoHelpText();
     refreshUnlockLogoButton();
     toggleCompanyForm(false);
 }
@@ -2012,18 +2152,32 @@ function updateVatLabel() {
     const vatRateInput = inputs[0];
     const vatTextInput = inputs[1];
 
-    vatBox.innerHTML = '';
+    if (!vatRateInput) return;
 
-    if (currentLang === 'de') {
-        vatBox.appendChild(document.createTextNode('MwSt. ('));
+    // წავშალოთ მხოლოდ ტექსტის კვანძები, დავტოვოთ input ელემენტები
+    const textNodes = [];
+    vatBox.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) textNodes.push(node);
+    });
+    textNodes.forEach(node => node.remove());
+
+    // დავამატოთ ახალი ტექსტი
+    const prefix = currentLang === 'de' ? 'MwSt. (' : 'VAT (';
+    vatBox.insertBefore(document.createTextNode(prefix), vatRateInput);
+
+    // მოვძებნოთ არსებული %-ის კვანძი
+    let percentNode = null;
+    vatBox.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.includes('%')) {
+            percentNode = node;
+        }
+    });
+
+    if (percentNode) {
+        percentNode.textContent = '%) ';
     } else {
-        vatBox.appendChild(document.createTextNode('VAT ('));
+        vatBox.insertBefore(document.createTextNode('%) '), vatTextInput || null);
     }
-
-    if (vatRateInput) vatBox.appendChild(vatRateInput);
-    vatBox.appendChild(document.createTextNode('%)'));
-    vatBox.appendChild(document.createTextNode(' '));
-    if (vatTextInput) vatBox.appendChild(vatTextInput);
 
     refreshVatVisibility();
 }
