@@ -6,7 +6,6 @@ let swRegistration = null;
 let modalCallback = null;
 let currentLang = 'en';
 let userAcceptedUpdate = false;
-let clientHistoryOptions = [];
 
 // =========================================
 // DATA MODEL
@@ -84,10 +83,7 @@ document.addEventListener('click', function (e) {
         closeBackupMenu();
     }
 
-    const historyWrap = document.getElementById('client-history-container');
-    if (historyWrap && !historyWrap.contains(e.target)) {
-        closeClientHistoryDropdown();
-    }
+
 });
 
 function getLogoPath(company) {
@@ -119,14 +115,14 @@ function createEmptyCompanyData() {
         invoices: [],
         clients: [],
         currentInvoice: {
-            num: '',
-            date: getCurrentDate(),
-            client: '',
-            clientId: '',
-            vatRate: 0,
-            vatText: '',
-            items: [{ desc: '', qty: 1, price: 0 }]
-        }
+        num: '',
+        date: getCurrentDate(),
+        client: '',
+        clientId: '',
+        vatRate: 0,
+        vatText: '',
+       items: [{ desc: '', qty: 1, price: 0 }]
+       }
     };
 }
 
@@ -657,45 +653,96 @@ function compactVatForPrint() {
     const vatTextInput = document.getElementById('vat_text');
     const vatBox = document.querySelector('.summary-vat-label');
 
+    // VAT rate input-ის სტილები
     if (vatRateInput) {
         styleElementOnlyForPrint(vatRateInput, {
-            width: '32px',
-            minWidth: '32px',
+            width: '22px',
+            minWidth: '22px',
+            maxWidth: '22px',
             padding: '0',
-            margin: '0 2px',
-            textAlign: 'center'
+            margin: '0',
+            textAlign: 'center',
+            lineHeight: '1'
         });
     }
 
-    if (vatTextInput) {
-        const note = (vatTextInput.value || '').trim();
-
-        if (!note) {
+    // VAT note-ის შემოწმება
+    const note = (vatTextInput ? vatTextInput.value || '' : '').trim();
+    
+    if (!note) {
+        // თუ ტექსტი არ არის, მთლიანად დავმალოთ VAT ნოტის ველი
+        if (vatTextInput) {
             styleElementOnlyForPrint(vatTextInput, {
                 display: 'none',
                 width: '0',
                 minWidth: '0',
+                maxWidth: '0',
                 padding: '0',
                 margin: '0',
                 border: '0'
             });
-        } else {
+        }
+        
+        if (vatBox) {
+            // მოვძებნოთ ყველა ტექსტური კვანძი და წავშალოთ ცარიელი
+            const childNodes = vatBox.childNodes;
+            for (let i = childNodes.length - 1; i >= 0; i--) {
+                const node = childNodes[i];
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent.trim();
+                    if (text === '') {
+                        node.remove();
+                    }
+                }
+            }
+            
+            styleElementOnlyForPrint(vatBox, {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '1px',
+                letterSpacing: '0',
+                whiteSpace: 'nowrap',
+                lineHeight: '1'
+            });
+        }
+    } else {
+        // თუ ტექსტი არის, ვაჩვენოთ ველი
+        if (vatTextInput) {
             styleElementOnlyForPrint(vatTextInput, {
-                marginLeft: '4px'
+                display: 'inline-block',
+                marginLeft: '2px',
+                lineHeight: '1'
+            });
+        }
+        
+        if (vatBox) {
+            styleElementOnlyForPrint(vatBox, {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '1px',
+                letterSpacing: '0',
+                whiteSpace: 'nowrap',
+                lineHeight: '1'
             });
         }
     }
+}
 
-    if (vatBox) {
-        styleElementOnlyForPrint(vatBox, {
-            gap: '0',
-            letterSpacing: '0'
-        });
-    }
+function syncItemDescPrintDivs() {
+    document.querySelectorAll('.item-row').forEach(row => {
+        const input = row.querySelector('.item-desc-input');
+        const printDiv = row.querySelector('.item-desc-print');
+        if (!input || !printDiv) return;
+        const val = input.value || '';
+        printDiv.innerHTML = esc(val).replace(/\n/g, '<br>');
+    });
 }
 
 function preparePrintLayout() {
     runPrintCleanup();
+
+    // განვაახლოთ description print div-ები input-ის მიმდინარე მნიშვნელობით
+    syncItemDescPrintDivs();
 
     calculateAll();
 
@@ -705,6 +752,14 @@ function preparePrintLayout() {
         if (vatRateInput.value.trim() === '' || isNaN(rawVat) || rawVat < 0) {
             vatRateInput.value = '0';
         }
+    }
+
+    // VAT note-ის დამალვა თუ ცარიელია
+    const vatTextInput = document.getElementById('vat_text');
+    if (vatTextInput && (!vatTextInput.value || vatTextInput.value.trim() === '')) {
+        styleElementOnlyForPrint(vatTextInput, {
+            display: 'none'
+        });
     }
 
     // COMPANY block: hide empty lines only on print
@@ -909,23 +964,26 @@ function renderItemRows() {
         tr.dataset.index = i;
 
         const total = (parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0);
+        const escapedDesc = esc(item.desc).replace(/\n/g, '<br>');
 
         tr.innerHTML = `
-            <td>
-                <input type="text" class="item-desc-input" value="${esc(item.desc)}"
+            <td class="item-desc-cell">
+                <input type="text" class="item-desc-input no-print" value="${esc(item.desc)}"
                     oninput="updateItem(${i}, 'desc', this.value)" placeholder="Description of work...">
+                <div class="item-desc-print print-only">${escapedDesc}</div>
             </td>
             <td style="text-align:center">
                 <input type="number" class="item-num-input" value="${item.qty}"
                     oninput="updateItem(${i}, 'qty', this.value)" min="0" step="0.01" style="width:70px">
             </td>
             <td>
-                <div class="item-price-wrap">
-                    <span class="currency">€</span>
-                    <input type="number" class="item-num-input" value="${item.price}"
-                        oninput="updateItem(${i}, 'price', this.value)" min="0" step="0.01" style="width:90px">
-                </div>
-            </td>
+    <div class="item-price-wrap">
+        <span class="currency">€</span>
+        <input type="number" class="item-num-input no-print" value="${item.price}"
+            oninput="updateItem(${i}, 'price', this.value)" min="0" step="0.01" style="width:90px">
+        <span class="item-price-print print-only" id="row-price-print-${i}">${(parseFloat(item.price) || 0).toFixed(2)}</span>
+    </div>
+</td>
             <td class="item-total-cell">
                 €<span id="row-total-${i}">${total.toFixed(2)}</span>
             </td>
@@ -1006,6 +1064,8 @@ function calculateAll() {
 
         const el = document.getElementById('row-total-' + i);
         if (el) el.innerText = t.toFixed(2);
+        const pricePrintEl = document.getElementById('row-price-print-' + i);
+        if (pricePrintEl) pricePrintEl.innerText = p.toFixed(2);
     });
 
     const vatRateInput = document.getElementById('vat_rate');
@@ -1067,12 +1127,7 @@ if (errors.length > 0) {
 
     const ci = COMPANY_DATA.currentInvoice;
 
-    // შევინახოთ კლიენტის ბოლო description (პირველი item-ის desc)
-    if (ci.clientId && ci.items && ci.items[0] && ci.items[0].desc) {
-        saveClientLastDescription(ci.clientId, ci.items[0].desc);
-    }
-
-    const hasAmountRow = (ci.items || []).some(item => {
+const hasAmountRow = (ci.items || []).some(item => {
         const qty = parseFloat(item.qty) || 0;
         const price = parseFloat(item.price) || 0;
         return qty * price > 0;
@@ -1199,39 +1254,52 @@ function loadInvoiceFromHistory(index) {
 }
 
 function printInvoiceFromHistory(index) {
-    // Load invoice into the form, then print — without changing currentInvoice permanently
     const inv = COMPANY_DATA.invoices[index];
     if (!inv) return;
 
-    // Temporarily swap in the selected invoice
+    // შევინახოთ მიმდინარე მდგომარეობა
     const previousInvoice = JSON.parse(JSON.stringify(COMPANY_DATA.currentInvoice));
-   
+    const previousPage = document.querySelector('.page.active')?.id || 'page-history';
+
+    // ჩავტვირთოთ არჩეული ინვოისი
     COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(inv));
+
     if (!COMPANY_DATA.currentInvoice.items || !COMPANY_DATA.currentInvoice.items.length) {
         COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
     }
 
+    // განვაახლოთ ფორმა
     renderInvoiceForm();
     refreshClientPicker();
+    updateClientPrintBlock();
+    calculateAll();
 
-    // Switch to invoice page so print captures it correctly
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    const invoicePage = document.getElementById('page-invoice');
-    if (invoicePage) invoicePage.classList.add('active');
+    // გადავიდეთ ინვოისის გვერდზე
+    showPage('invoice');
 
-    // Print, then restore everything — longer delay so calculateAll() has time to render
+    // დაველოდოთ DOM-ის სრულ განახლებას
     setTimeout(() => {
-        window.print();
+        calculateAll();
+        document.body.classList.add('printing-invoice');
 
-        // Restore previous state after print dialog closes
         setTimeout(() => {
-            COMPANY_DATA.currentInvoice = previousInvoice;
-         
-            renderInvoiceForm();
-            refreshClientPicker();
-            showPage('history');
-        }, 500);
-    }, 350);
+            // ✅ afterprint-ზე ვაბამ restore-ს — არა setTimeout-ზე.
+            // setTimeout(500) ნაადრევად აღადგენდა currentInvoice-ს,
+            // ამიტომ მეორე ბეჭდვისას previousInvoice უკვე პირველი
+            // დაბეჭდილი ინვოისი იყო და სულ ერთი და იგივე იბეჭდებოდა.
+            function onAfterPrint() {
+                window.removeEventListener('afterprint', onAfterPrint);
+                COMPANY_DATA.currentInvoice = previousInvoice;
+                renderInvoiceForm();
+                refreshClientPicker();
+                document.body.classList.remove('printing-invoice');
+                showPage(previousPage.replace('page-', ''));
+            }
+
+            window.addEventListener('afterprint', onAfterPrint);
+            window.print();
+        }, 150);
+    }, 300);
 }
 
 function deleteInvoice(index) {
@@ -1252,14 +1320,14 @@ function newInvoice() {
         const nextNum = generateInvoiceNumber();
 
         COMPANY_DATA.currentInvoice = {
-            num: nextNum,
-            date: getCurrentDate(),
-            client: '',
-            clientId: '',
-            vatRate: 0,
-            vatText: '',
-            items: [{ desc: '', qty: 1, price: 0 }]
-        };
+        num: nextNum,
+        date: getCurrentDate(),
+        client: '',
+        clientId: '',
+        vatRate: 0,
+        vatText: '',
+        items: [{ desc: '', qty: 1, price: 0 }]
+   };
 
         saveAppData();
         renderInvoiceForm();
@@ -1377,122 +1445,6 @@ function deleteClient(id) {
     });
 }
 
-// =========================================
-// CLIENT DESCRIPTION HISTORY
-// =========================================
-
-function saveClientLastDescription(clientId, description) {
-    if (!clientId || !description) return;
-    const client = COMPANY_DATA.clients.find(c => c.id === clientId);
-    if (!client) return;
-
-    client.lastDescription = description;
-
-    if (!client.descriptionHistory) client.descriptionHistory = [];
-
-    if (client.descriptionHistory[0] !== description) {
-        client.descriptionHistory.unshift(description);
-        if (client.descriptionHistory.length > 3) {
-            client.descriptionHistory = client.descriptionHistory.slice(0, 3);
-        }
-    }
-
-    saveAppData();
-}
-
-function loadClientLastDescription(clientId) {
-    if (!clientId) return '';
-    const client = COMPANY_DATA.clients.find(c => c.id === clientId);
-    if (!client) return '';
-    return client.lastDescription || '';
-}
-
-function toggleClientHistoryDropdown() {
-    const wrap = document.getElementById('client-history-container');
-    if (!wrap || wrap.style.display === 'none') return;
-    wrap.classList.toggle('open');
-}
-
-function closeClientHistoryDropdown() {
-    const wrap = document.getElementById('client-history-container');
-    if (wrap) wrap.classList.remove('open');
-}
-
-function renderClientHistoryDropdown(options) {
-    clientHistoryOptions = Array.isArray(options) ? options : [];
-
-    const container = document.getElementById('client-history-container');
-    const menu = document.getElementById('client-history-menu');
-    const trigger = document.getElementById('client-history-trigger');
-
-    if (!container || !menu || !trigger) return;
-
-    closeClientHistoryDropdown();
-
-    if (!clientHistoryOptions.length) {
-        container.style.display = 'none';
-        menu.innerHTML = '';
-        return;
-    }
-
-    container.style.display = 'block';
-    trigger.querySelector('span').textContent = '📋 Load previous description...';
-
-    menu.innerHTML = clientHistoryOptions.map((text, index) => `
-        <button type="button" class="client-history-item" onclick="selectClientHistoryDescription(${index})">
-            <span class="client-history-text">${esc(text)}</span>
-        </button>
-    `).join('');
-}
-
-function selectClientHistoryDescription(index) {
-    const value = clientHistoryOptions[index];
-    if (!value) return;
-    loadDescriptionFromHistory(value);
-    closeClientHistoryDropdown();
-}
-
-function refreshDescriptionHistoryDropdown(clientId) {
-    const container = document.getElementById('client-history-container');
-    if (!container) return;
-
-    const client = (COMPANY_DATA.clients || []).find(c => c.id === clientId);
-
-    if (!client) {
-        renderClientHistoryDropdown([]);
-        return;
-    }
-
-    let descriptions = [];
-
-    if (Array.isArray(client.descriptionHistory)) {
-        descriptions = client.descriptionHistory
-            .map(x => String(x || '').trim())
-            .filter(Boolean);
-    }
-
-    if (client.lastDescription && String(client.lastDescription).trim()) {
-        const last = String(client.lastDescription).trim();
-        descriptions = [last, ...descriptions.filter(x => x !== last)];
-    }
-
-    renderClientHistoryDropdown(descriptions);
-}
-
-function loadDescriptionFromHistory(value) {
-    if (!value) return;
-
-    if (!COMPANY_DATA.currentInvoice.items || !COMPANY_DATA.currentInvoice.items.length) {
-        COMPANY_DATA.currentInvoice.items = [{ desc: '', qty: 1, price: 0 }];
-    }
-
-    COMPANY_DATA.currentInvoice.items[0].desc = value;
-    renderItemRows();
-    calculateAll();
-    saveAppData();
-    showToast('📝 Description loaded');
-}
-
 function useClientForInvoice(id) {
     const c = COMPANY_DATA.clients.find(cl => cl.id === id);
     if (!c) return;
@@ -1507,15 +1459,8 @@ function useClientForInvoice(id) {
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
 
-    // ბოლო description პირველ item-ში
-    const lastDesc = loadClientLastDescription(id);
-    if (lastDesc && COMPANY_DATA.currentInvoice.items && COMPANY_DATA.currentInvoice.items[0]) {
-        COMPANY_DATA.currentInvoice.items[0].desc = lastDesc;
-    }
-
     saveAppData();
     renderClients();
-    refreshDescriptionHistoryDropdown(id);
     showPage('invoice');
     renderInvoiceForm();
     showToast('👤 Client added to invoice');
@@ -1535,12 +1480,6 @@ function renderClients() {
             <div class="client-name">${esc(c.name)}</div>
             <div class="client-detail">${[c.reg, c.addr, c.email, c.phone].filter(Boolean).map(esc).join('\n')}</div>
             ${c.note ? `<div style="font-size:12px;color:#a0aec0;margin-top:6px;font-style:italic">${esc(c.note)}</div>` : ''}
-            ${c.lastDescription ? `
-            <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0;">
-                <div style="font-size:11px;font-weight:600;color:#4c6ef5;margin-bottom:2px;">📝 Last description:</div>
-                <div style="font-size:12px;color:#2d3748;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.lastDescription)}</div>
-            </div>
-            ` : ''}
             <div class="client-card-actions">
                 <button class="hist-btn hist-btn-load" onclick="useClientForInvoice('${c.id}')">📄 Use in Invoice</button>
                 <button class="hist-btn" style="background:#eef2ff;color:#4c6ef5;" onclick="editClient('${c.id}')">✏️ Edit</button>
@@ -1574,8 +1513,6 @@ function fillClientFromPicker() {
         COMPANY_DATA.currentInvoice.client = '';
         COMPANY_DATA.currentInvoice.clientId = '';
         document.getElementById('client_info').value = '';
-        const container = document.getElementById('client-history-container');
-        if (container) container.style.display = 'none';
         saveAppData();
         return;
     }
@@ -1597,18 +1534,12 @@ function fillClientFromPicker() {
     COMPANY_DATA.currentInvoice.clientId = id;
     document.getElementById('client_info').value = info;
 
-    // ბოლო description პირველ item-ში (textarea-ში არ ჩაემატოს!)
-    const lastDesc = loadClientLastDescription(id);
-    if (lastDesc && COMPANY_DATA.currentInvoice.items && COMPANY_DATA.currentInvoice.items[0]) {
-        COMPANY_DATA.currentInvoice.items[0].desc = lastDesc;
-    }
-
-    refreshDescriptionHistoryDropdown(id);
     saveAppData();
     renderClients();
     renderInvoiceForm();
     showToast('👤 ' + c.name);
 }
+
 
   // =========================================
 // COMPANIES
