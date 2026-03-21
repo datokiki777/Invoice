@@ -2054,17 +2054,17 @@ body.pdf-mode .ios-banner {
 
     .meta-left,
     .meta-right {
-    justify-self: stretch !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 138px !important;
-    background: #f8fbff !important;
-    border: 1px solid rgba(13, 61, 122, 0.16) !important;
-    border-radius: 12px !important;
-    padding: 12px 14px 14px !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-}
+        justify-self: stretch !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 138px !important;
+        background: #f8fbff !important;
+        border: 1px solid rgba(13, 61, 122, 0.16) !important;
+        border-radius: 12px !important;
+        padding: 12px 14px 14px !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
 
     .meta-right {
         width: calc(100% - 2px) !important;
@@ -2101,11 +2101,11 @@ body.pdf-mode .ios-banner {
     }
 
     .meta-detail-row {
-     padding: 7px 0 !important;
-     border-bottom: 1px solid #dfe7f3 !important;
-     font-size: 11px !important;
-     line-height: 1.35 !important;
-}
+        padding: 7px 0 !important;
+        border-bottom: 1px solid #dfe7f3 !important;
+        font-size: 11px !important;
+        line-height: 1.35 !important;
+    }
 
     .meta-detail-row:last-child {
         border-bottom: none !important;
@@ -2134,195 +2134,221 @@ body.pdf-mode .ios-banner {
         -webkit-appearance: none !important;
     }
 
-   /* ===== ITEMS TABLE PRINT STYLES ===== */
-.items-section {
-    margin-top: 12px !important;
-}
+    /* ===== ITEMS TABLE - FIXED LAYOUT (SOLUTION FOR ANDROID) ===== */
+    .items-section {
+        margin-top: 12px !important;
+        width: 100% !important;
+        overflow-x: visible !important;
+    }
 
-.items-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-}
+    .items-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+    }
 
-.items-table thead tr {
-    background: linear-gradient(90deg, #0d3d7a, #1a5cad) !important;
-}
+    /* Fixed column widths - stable on all platforms */
+    .items-table th:nth-child(1),
+    .items-table td:nth-child(1) {
+        width: 48% !important;
+    }
 
-.items-table thead th {
-    background: transparent !important;
-    padding: 10px 8px !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.6px !important;
-    color: white !important;
-    text-align: center !important;
-}
+    .items-table th:nth-child(2),
+    .items-table td:nth-child(2) {
+        width: 12% !important;
+    }
 
-.items-table thead th:first-child {
-    text-align: left !important;
-    padding-left: 12px !important;
-}
+    .items-table th:nth-child(3),
+    .items-table td:nth-child(3) {
+        width: 20% !important;
+    }
 
-.items-table thead th:last-child {
-    text-align: right !important;
-    padding-right: 12px !important;
-}
+    .items-table th:nth-child(4),
+    .items-table td:nth-child(4) {
+        width: 20% !important;
+    }
+
+    .items-table thead tr {
+        background: linear-gradient(90deg, #0d3d7a, #1a5cad) !important;
+    }
+
+    .items-table thead th {
+        background: transparent !important;
+        padding: 10px 8px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.6px !important;
+        color: white !important;
+        text-align: center !important;
+    }
+
+    .items-table thead th:first-child {
+        text-align: left !important;
+        padding-left: 12px !important;
+    }
+
+    .items-table thead th:last-child {
+        text-align: right !important;
+        padding-right: 12px !important;
+    }
 
     .items-table thead th:nth-child(3) {
-    text-align: right !important;
-    padding-right: 24px !important;
-}
+        text-align: right !important;
+        padding-right: 16px !important;
+    }
 
-.items-table thead th:nth-child(4) {
-    text-align: right !important;
-    padding-right: 12px !important;
-}
+    .items-table thead th:nth-child(4) {
+        text-align: right !important;
+        padding-right: 12px !important;
+    }
 
-/* Table cells - vertical align middle */
-.items-table td {
-    vertical-align: middle !important;
-    padding: 10px 6px !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-}
+    /* Table cells */
+    .items-table td {
+        vertical-align: middle !important;
+        padding: 10px 6px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
 
-/* Description column */
-.items-table td:first-child {
-    vertical-align: middle !important;
-    padding-left: 12px !important;
-}
+    /* Description column */
+    .items-table td:first-child {
+        padding-left: 12px !important;
+        word-break: break-word !important;
+        white-space: normal !important;
+        line-height: 1.4 !important;
+    }
 
-/* Hide input fields in print */
-.items-table td .item-desc-input,
-.item-desc-input {
-    display: none !important;
-}
+    /* Hide input fields in print */
+    .items-table td .item-desc-input,
+    .item-desc-input {
+        display: none !important;
+    }
 
-/* Show print div for description */
-.items-table td .item-desc-print,
-.item-desc-print {
-    display: block !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-    line-height: 1.4 !important;
-    font-size: 13px !important;
-    color: #1a202c !important;
-    padding: 0 !important;
-    font-weight: 500 !important;
-}
+    /* Show print div for description */
+    .items-table td .item-desc-print,
+    .item-desc-print {
+        display: block !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.4 !important;
+        font-size: 12px !important;
+        color: #1a202c !important;
+        padding: 0 !important;
+        font-weight: 500 !important;
+    }
 
-/* Qty column */
-.items-table td:nth-child(2) {
-    text-align: center !important;
-    vertical-align: middle !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #0d3d7a !important;
-}
+    /* Qty column */
+    .items-table td:nth-child(2) {
+        text-align: center !important;
+        vertical-align: middle !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #0d3d7a !important;
+    }
 
-/* Unit Price column - print as plain text, not input */
-.items-table td:nth-child(3) {
-    text-align: right !important;
-    vertical-align: middle !important;
-    white-space: nowrap !important;
-}
+    /* Unit Price column */
+    .items-table td:nth-child(3) {
+        text-align: right !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+        padding-right: 12px !important;
+    }
 
-.items-table td:nth-child(3) .item-price-wrap {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    gap: 0 !important;
-    white-space: nowrap !important;
-}
+    .items-table td:nth-child(3) .item-price-wrap {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0 !important;
+        white-space: nowrap !important;
+    }
 
-.items-table td:nth-child(3) .currency {
-    display: inline-block !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #0d3d7a !important;
-    line-height: 1 !important;
-}
+    .items-table td:nth-child(3) .currency {
+        display: inline-block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #0d3d7a !important;
+        line-height: 1 !important;
+    }
 
-.items-table td:nth-child(3) .item-num-input {
-    display: none !important;
-}
+    .items-table td:nth-child(3) .item-num-input {
+        display: none !important;
+    }
 
-.items-table td:nth-child(3) .item-price-print {
-    display: inline-block !important;
-    margin: 0 0 0 1px !important;
-    padding: 0 !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: #0d3d7a !important;
-    line-height: 1 !important;
-}
+    .items-table td:nth-child(3) .item-price-print {
+        display: inline-block !important;
+        margin: 0 0 0 1px !important;
+        padding: 0 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #0d3d7a !important;
+        line-height: 1 !important;
+    }
 
-/* Amount column */
-.items-table td:nth-child(4) {
-    text-align: right !important;
-    vertical-align: middle !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    color: #0d3d7a !important;
-    padding-right: 12px !important;
-    white-space: nowrap !important;
-}
+    /* Amount column */
+    .items-table td:nth-child(4) {
+        text-align: right !important;
+        vertical-align: middle !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: #0d3d7a !important;
+        padding-right: 12px !important;
+        white-space: nowrap !important;
+    }
 
-    
     /* VAT inputs - clean styling for print */
-.vat-note-input {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    outline: none !important;
-    padding: 0 !important;
-    margin: 0 0 0 2px !important;
-    font-size: 11px !important;
-    font-style: italic !important;
-    color: #4a5568 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: 110px !important;
-    display: inline-block !important;
-    line-height: 1 !important;
-    vertical-align: middle !important;
-}
+    .vat-note-input {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        padding: 0 !important;
+        margin: 0 0 0 2px !important;
+        font-size: 11px !important;
+        font-style: italic !important;
+        color: #4a5568 !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 110px !important;
+        display: inline-block !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
+    }
 
-.vat-rate-input {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    outline: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: auto !important;
-    min-width: 22px !important;
-    max-width: 28px !important;
-    text-align: center !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    color: #1a202c !important;
-    line-height: 1 !important;
-    vertical-align: middle !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-}
+    .vat-rate-input {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: auto !important;
+        min-width: 22px !important;
+        max-width: 28px !important;
+        text-align: center !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #1a202c !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+    }
 
-.vat-note-input[value=""] {
-    display: none !important;
-}
+    .vat-note-input[value=""] {
+        display: none !important;
+    }
 
-.summary-vat-label {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 2px !important;
-    border: none !important;
-    background: transparent !important;
-    white-space: nowrap !important;
-    line-height: 1 !important;
-}
+    .summary-vat-label {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 2px !important;
+        border: none !important;
+        background: transparent !important;
+        white-space: nowrap !important;
+        line-height: 1 !important;
+    }
 
     /* Summary */
     .inv-summary {
@@ -2355,17 +2381,17 @@ body.pdf-mode .ios-banner {
     }
 
     .footer-card {
-    box-shadow: none !important;
-    background: #f8fbff !important;
-    border: 1px solid rgba(13, 61, 122, 0.16) !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    min-height: 132px !important;
-    height: auto !important;
-    padding: 9px 10px 12px !important;
-    border-radius: 12px !important;
-    overflow: visible !important;
-}
+        box-shadow: none !important;
+        background: #f8fbff !important;
+        border: 1px solid rgba(13, 61, 122, 0.16) !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        min-height: 132px !important;
+        height: auto !important;
+        padding: 9px 10px 12px !important;
+        border-radius: 12px !important;
+        overflow: visible !important;
+    }
 
     .footer-title {
         font-size: 10px !important;
@@ -2408,21 +2434,21 @@ body.pdf-mode .ios-banner {
     }
 
     .terms-card {
-    min-height: 132px !important;
-    height: auto !important;
-    padding-bottom: 14px !important;
-    overflow: visible !important;
-    margin-right: 2px !important;
-    width: calc(100% - 2px) !important;
-}
+        min-height: 132px !important;
+        height: auto !important;
+        padding-bottom: 14px !important;
+        overflow: visible !important;
+        margin-right: 2px !important;
+        width: calc(100% - 2px) !important;
+    }
 
-.terms-text {
-    color: #2d3748 !important;
-    font-size: 10px !important;
-    line-height: 1.4 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-}
+    .terms-text {
+        color: #2d3748 !important;
+        font-size: 10px !important;
+        line-height: 1.4 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
 }
 
 .item-price-print {
