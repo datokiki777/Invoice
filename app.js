@@ -1320,20 +1320,25 @@ function newInvoice() {
         const nextNum = generateInvoiceNumber();
 
         COMPANY_DATA.currentInvoice = {
-        num: nextNum,
-        date: getCurrentDate(),
-        client: '',
-        clientId: '',
-        vatRate: 0,
-        vatText: '',
-        items: [{ desc: '', qty: 1, price: 0 }]
-   };
+            num: nextNum,
+            date: getCurrentDate(),
+            client: '',
+            clientId: '',
+            vatRate: 0,
+            vatText: '',
+            items: [{ desc: '', qty: 1, price: 0 }]
+        };
 
         saveAppData();
         renderInvoiceForm();
         refreshClientPicker();
         showPage('invoice');
         showToast('➕ New Invoice');
+        
+        const currentClientId = COMPANY_DATA.currentInvoice.clientId;
+        if (currentClientId) {
+            loadLastInvoiceDescriptionForClient(currentClientId);
+        }
     });
 }
 
@@ -1507,6 +1512,54 @@ function refreshClientPicker() {
     });
 }
 
+  // =========================================
+// LOAD LAST INVOICE DESCRIPTION FOR CLIENT
+// =========================================
+
+function loadLastInvoiceDescriptionForClient(clientId) {
+    if (!clientId) return;
+    
+    const history = COMPANY_DATA.invoices || [];
+    const clientInvoices = history.filter(inv => inv.clientId === clientId);
+    
+    if (clientInvoices.length === 0) return;
+    
+    const lastInvoice = clientInvoices[clientInvoices.length - 1];
+    
+    if (lastInvoice && lastInvoice.items && lastInvoice.items.length > 0) {
+        const lastDescription = lastInvoice.items[0].desc || '';
+        
+        if (lastDescription) {
+            // ვაჩვენოთ შეტყობინება toast-ით
+            showToast(`📋 Last invoice: "${lastDescription.substring(0, 40)}${lastDescription.length > 40 ? '...' : ''}"`);
+            
+            const firstDescInput = document.querySelector('.item-desc-input');
+            
+            if (firstDescInput && lastDescription) {
+                // 👇 ბრაუზერის confirm-ის ნაცვლად, გამოიყენე შენი modal
+                confirmAction(
+    '📋 Use Previous Description?',
+    `Last invoice for this client:\n\n"${lastDescription}"\n\nDo you want to use it as description?`,
+    () => {
+        // OK - ჩაწერა
+        firstDescInput.value = lastDescription;
+        if (COMPANY_DATA.currentInvoice.items[0]) {
+            COMPANY_DATA.currentInvoice.items[0].desc = lastDescription;
+            calculateAll();
+            saveAppData();
+        }
+        const row = firstDescInput.closest('.item-row');
+        if (row && row.dataset.index !== undefined) {
+            updateItem(parseInt(row.dataset.index), 'desc', lastDescription);
+        }
+        showToast('✅ Description filled!');
+                   }
+               );
+            }
+        }
+    }
+}
+
 function fillClientFromPicker() {
     const id = document.getElementById('client_picker').value;
     if (!id) {
@@ -1538,6 +1591,8 @@ function fillClientFromPicker() {
     renderClients();
     renderInvoiceForm();
     showToast('👤 ' + c.name);
+    
+    loadLastInvoiceDescriptionForClient(id);
 }
 
 
