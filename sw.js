@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v2.8.0';
+const CACHE_NAME = 'invoice-pwa-v2.7.1';
 
 const APP_SHELL = [
   './',
@@ -6,15 +6,10 @@ const APP_SHELL = [
   './style.css',
   './app.js',
   './manifest.json',
-
-  './icon-72.png',
-  './icon-96.png',
-  './icon-128.png',
-  './icon-192.png',
-  './icon-256.png',
-  './icon-512.png',
-
-  './apple-touch-icon.png'
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-192-maskable.png',
+  './icons/icon-512-maskable.png'
 ];
 
 // Install: preload ONLY this version's app shell into this version's cache
@@ -52,13 +47,10 @@ function isAppShellRequest(request) {
     url.pathname.endsWith('/style.css') ||
     url.pathname.endsWith('/app.js') ||
     url.pathname.endsWith('/manifest.json') ||
-    url.pathname.endsWith('/icon-72.png') ||
-    url.pathname.endsWith('/icon-96.png') ||
-    url.pathname.endsWith('/icon-128.png') ||
-    url.pathname.endsWith('/icon-192.png') ||
-    url.pathname.endsWith('/icon-256.png') ||
-    url.pathname.endsWith('/icon-512.png') ||
-    url.pathname.endsWith('/apple-touch-icon.png')
+    url.pathname.endsWith('/icons/icon-192.png') ||
+    url.pathname.endsWith('/icons/icon-512.png') ||
+    url.pathname.endsWith('/icons/icon-192-maskable.png') ||
+    url.pathname.endsWith('/icons/icon-512-maskable.png')
   );
 }
 
@@ -97,11 +89,7 @@ self.addEventListener('fetch', event => {
       if (cached) return cached;
 
       return fetch(request).then(networkResponse => {
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          request.method === 'GET'
-        ) {
+        if (networkResponse && networkResponse.status === 200) {
           const copy = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
         }
