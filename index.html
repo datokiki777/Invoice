@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ka">
 <head>
-    <meta charset="UTF-8">
+   <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0d3d7a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,8 +24,8 @@
 
 <title>Invoice</title>
 
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -251,6 +251,9 @@
             </div>
 
         </div>
+        
+        <!-- QR CODE SECTION -->
+        <div id="invoice-qr-container" class="qr-container" style="display: flex; justify-content: center; margin: 20px 0;"></div>
 
         <div class="action-bar no-print invoice-action-bar">
     <button class="btn btn-success invoice-action-btn" onclick="saveInvoiceToHistory()">💾 Save</button>
@@ -268,7 +271,15 @@
             <div class="page-title">📂 Invoice History</div>
             <div class="page-subtitle">Saved invoices</div>
         </div>
-        <button class="btn btn-primary" onclick="newInvoice()">➕ New Invoice</button>
+
+        <div class="history-tools">
+            <button id="qr_toggle_btn" class="qr-toggle-btn" onclick="toggleQrGlobal()">
+                <span class="qr-toggle-dot"></span>
+                <span class="qr-toggle-text">QR ON</span>
+            </button>
+
+            <button class="btn btn-primary" onclick="newInvoice()">➕ New Invoice</button>
+        </div>
     </div>
 
     <div class="history-list" id="history-list">
@@ -597,6 +608,8 @@
 </div>
 
  <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;" onchange="handleImportFile(event)">
+ 
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="app.js"></script>
 

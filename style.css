@@ -926,7 +926,7 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 18px;
     border-top: 1px solid var(--border);
-    padding: 36px 28px 20px;
+    padding: 24px 28px 14px;
     align-items: stretch;
 }
 
@@ -935,9 +935,10 @@ body {
     border: 1px solid rgba(13, 61, 122, 0.10);
     border-radius: 14px;
     box-shadow: 0 6px 18px rgba(13,61,122,0.08);
-    padding: 16px 16px 14px;
+    padding: 14px 14px 12px;
     position: relative;
-    min-height: 190px;
+    min-height: 150px;
+    height: 100%;
 }
 
 .footer-title {
@@ -994,12 +995,14 @@ body {
 .terms-card {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    min-height: 150px;
 }
 
 .terms-text {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-muted);
-    line-height: 1.65;
+    line-height: 1.45;
 }
 
 
@@ -1111,9 +1114,65 @@ body {
 }
 
 
+
+
 /* ============================================================
    17. HISTORY PAGE
    ============================================================ */
+
+.history-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.qr-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid #c7d2fe;
+    background: #eef2ff;
+    color: #1a3c7a;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(13,61,122,0.08);
+}
+
+.qr-toggle-btn:hover {
+    background: #e0e7ff;
+    transform: translateY(-1px);
+}
+
+.qr-toggle-btn:active {
+    transform: scale(0.97);
+}
+
+.qr-toggle-btn.active {
+    background: #0d3d7a;
+    color: white;
+    border-color: #0d3d7a;
+    box-shadow: 0 8px 18px rgba(13,61,122,0.20);
+}
+
+.qr-toggle-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.45);
+}
+
+.qr-toggle-btn.active .qr-toggle-dot {
+    background: #22c55e;
+}
 
 .history-list {
     display: flex;
@@ -1946,14 +2005,12 @@ body.pdf-mode .ios-banner {
         display: none !important;
     }
 
-    /* Invoice card */
+    /* Invoice card - remove break-inside constraint */
     .inv-card {
         box-shadow: none !important;
         border-radius: 0 !important;
         margin: 0 !important;
         overflow: visible !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
     }
 
     /* Header */
@@ -2033,11 +2090,10 @@ body.pdf-mode .ios-banner {
         color: #2d3748 !important;
     }
 
-    /* Meta */
+    /* Meta - footer-grid removed from break-inside group */
     .inv-meta,
     .items-section,
-    .inv-summary,
-    .inv-footer-grid {
+    .inv-summary {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
     }
@@ -2134,7 +2190,7 @@ body.pdf-mode .ios-banner {
         -webkit-appearance: none !important;
     }
 
-    /* ===== ITEMS TABLE - FIXED LAYOUT (SOLUTION FOR ANDROID) ===== */
+    /* ===== ITEMS TABLE - FIXED LAYOUT ===== */
     .items-section {
         margin-top: 12px !important;
         width: 100% !important;
@@ -2147,146 +2203,123 @@ body.pdf-mode .ios-banner {
         table-layout: fixed !important;
     }
 
-    /* Fixed column widths - stable on all platforms */
     .items-table th:nth-child(1),
     .items-table td:nth-child(1) {
-        width: 48% !important;
+        width: 50% !important;
     }
 
     .items-table th:nth-child(2),
     .items-table td:nth-child(2) {
-        width: 12% !important;
+        width: 10% !important;
     }
 
     .items-table th:nth-child(3),
     .items-table td:nth-child(3) {
-        width: 20% !important;
+        width: 18% !important;
     }
 
     .items-table th:nth-child(4),
     .items-table td:nth-child(4) {
-        width: 20% !important;
+        width: 22% !important;
     }
 
-    .items-table thead tr {
-        background: linear-gradient(90deg, #0d3d7a, #1a5cad) !important;
-    }
-
-    .items-table thead th {
-        background: transparent !important;
-        padding: 10px 8px !important;
-        font-size: 11px !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.6px !important;
+    .items-table th {
+        padding: 5px 6px !important;
+        font-size: 10px !important;
+        background: #0d3d7a !important;
         color: white !important;
-        text-align: center !important;
-    }
-
-    .items-table thead th:first-child {
         text-align: left !important;
-        padding-left: 12px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.3px !important;
+        white-space: nowrap !important;
     }
 
-    .items-table thead th:last-child {
+    .items-table th:nth-child(1) {
+        text-align: left !important;
+        padding-left: 8px !important;
+    }
+
+    .items-table th:nth-child(2) {
+        text-align: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .items-table th:nth-child(3) {
+        text-align: right !important;
+        padding-right: 10px !important;
+    }
+
+    .items-table th:nth-child(4) {
         text-align: right !important;
         padding-right: 12px !important;
     }
 
-    .items-table thead th:nth-child(3) {
-        text-align: right !important;
-        padding-right: 16px !important;
-    }
-
-    .items-table thead th:nth-child(4) {
-        text-align: right !important;
-        padding-right: 12px !important;
-    }
-
-    /* Table cells */
     .items-table td {
-        vertical-align: middle !important;
-        padding: 10px 6px !important;
+        padding: 5px 6px !important;
+        font-size: 10px !important;
+        line-height: 1.15 !important;
+        vertical-align: top !important;
         border-bottom: 1px solid #e2e8f0 !important;
-    }
-
-    /* Description column */
-    .items-table td:first-child {
-        padding-left: 12px !important;
-        word-break: break-word !important;
-        white-space: normal !important;
-        line-height: 1.4 !important;
-    }
-
-    /* Hide input fields in print */
-    .items-table td .item-desc-input,
-    .item-desc-input {
-        display: none !important;
-    }
-
-    /* Show print div for description */
-    .items-table td .item-desc-print,
-    .item-desc-print {
-        display: block !important;
-        white-space: normal !important;
-        word-break: break-word !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.4 !important;
-        font-size: 12px !important;
         color: #1a202c !important;
-        padding: 0 !important;
-        font-weight: 500 !important;
     }
 
-    /* Qty column */
+    .items-table tr:last-child td {
+        border-bottom: none !important;
+    }
+
+    .item-desc-print {
+        font-size: 10px !important;
+        line-height: 1.15 !important;
+        display: block !important;
+        color: #1a202c !important;
+    }
+
+
     .items-table td:nth-child(2) {
         text-align: center !important;
-        vertical-align: middle !important;
-        font-size: 12px !important;
+        font-size: 10px !important;
         font-weight: 600 !important;
-        color: #0d3d7a !important;
+        color: #1a202c !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
     }
 
-    /* Unit Price column */
     .items-table td:nth-child(3) {
         text-align: right !important;
         vertical-align: middle !important;
-        white-space: nowrap !important;
-        padding-right: 12px !important;
+        line-height: normal !important;
+        padding-right: 10px !important;
     }
 
     .items-table td:nth-child(3) .item-price-wrap {
-        display: inline-flex !important;
+        display: flex !important;
         align-items: center !important;
         justify-content: flex-end !important;
-        gap: 0 !important;
-        white-space: nowrap !important;
+        gap: 2px !important;
+        line-height: 1 !important;
     }
 
     .items-table td:nth-child(3) .currency {
         display: inline-block !important;
-        margin: 0 !important;
-        padding: 0 !important;
         font-size: 12px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         color: #0d3d7a !important;
-        line-height: 1 !important;
-    }
-
-    .items-table td:nth-child(3) .item-num-input {
-        display: none !important;
+        line-height: 1.2 !important;
+        vertical-align: middle !important;
+        transform: translateY(0) !important;
     }
 
     .items-table td:nth-child(3) .item-price-print {
         display: inline-block !important;
-        margin: 0 0 0 1px !important;
-        padding: 0 !important;
         font-size: 12px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         color: #0d3d7a !important;
-        line-height: 1 !important;
+        line-height: 1.2 !important;
+        vertical-align: middle !important;
+        transform: translateY(0) !important;
     }
 
-    /* Amount column */
     .items-table td:nth-child(4) {
         text-align: right !important;
         vertical-align: middle !important;
@@ -2295,9 +2328,10 @@ body.pdf-mode .ios-banner {
         color: #0d3d7a !important;
         padding-right: 12px !important;
         white-space: nowrap !important;
+        line-height: 1.2 !important;
     }
 
-    /* VAT inputs - clean styling for print */
+    /* VAT inputs */
     .vat-note-input {
         border: none !important;
         background: transparent !important;
@@ -2350,9 +2384,9 @@ body.pdf-mode .ios-banner {
         line-height: 1 !important;
     }
 
-    /* Summary */
+    /* Summary - reduced padding */
     .inv-summary {
-        padding: 14px 18px 4px !important;
+        padding: 10px 18px 2px !important;
         display: flex !important;
         justify-content: flex-end !important;
         border-top: 1px solid var(--border) !important;
@@ -2370,14 +2404,15 @@ body.pdf-mode .ios-banner {
         border-radius: 10px !important;
     }
 
-    /* Footer */
+    /* Footer - no break-inside, compact padding */
     .inv-footer-grid {
         grid-template-columns: 1fr 1fr !important;
         gap: 12px !important;
-        padding: 42px 2px 10px 0 !important;
-        align-items: start !important;
+        padding: 10px 2px 4px 0 !important;
+        align-items: stretch !important;
         border-top: none !important;
-        margin-top: 20px !important;
+        margin-top: 2px !important;
+        margin-bottom: 0 !important;
     }
 
     .footer-card {
@@ -2386,9 +2421,9 @@ body.pdf-mode .ios-banner {
         border: 1px solid rgba(13, 61, 122, 0.16) !important;
         break-inside: avoid !important;
         page-break-inside: avoid !important;
-        min-height: 132px !important;
+        min-height: 96px !important;
         height: auto !important;
-        padding: 9px 10px 12px !important;
+        padding: 7px 9px 8px !important;
         border-radius: 12px !important;
         overflow: visible !important;
     }
@@ -2407,10 +2442,10 @@ body.pdf-mode .ios-banner {
     .bank-card-content { gap: 2px !important; }
 
     .bank-row {
-        padding: 3px 0 !important;
+        padding: 2px 0 !important;
         gap: 5px !important;
-        font-size: 11px !important;
-        line-height: 1.28 !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
     }
 
     .bank-row strong {
@@ -2434,9 +2469,9 @@ body.pdf-mode .ios-banner {
     }
 
     .terms-card {
-        min-height: 132px !important;
+        min-height: 96px !important;
         height: auto !important;
-        padding-bottom: 14px !important;
+        padding-bottom: 8px !important;
         overflow: visible !important;
         margin-right: 2px !important;
         width: calc(100% - 2px) !important;
@@ -2444,10 +2479,60 @@ body.pdf-mode .ios-banner {
 
     .terms-text {
         color: #2d3748 !important;
-        font-size: 10px !important;
-        line-height: 1.4 !important;
+        font-size: 9.5px !important;
+        line-height: 1.25 !important;
         margin: 0 !important;
         overflow: visible !important;
+    }
+
+    /* ===== QR PRINT FIX ===== */
+    #invoice-qr-container,
+    .qr-container {
+        display: flex !important;
+        justify-content: center !important;
+        margin: 2px auto 0 auto !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+    }
+
+    #invoice-qr-container > .qr-card,
+    .qr-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        page-break-before: avoid !important;
+        page-break-after: avoid !important;
+        margin: 2px auto 0 auto !important;
+        padding: 4px !important;
+    }
+
+    .qr-card img {
+        width: 90px !important;
+        height: 90px !important;
+        max-width: 100% !important;
+    }
+
+    /* ===== COMPACT TABLE FOR PDF ===== */
+    .items-table th {
+        padding: 5px 6px !important;
+        font-size: 10px !important;
+    }
+
+    .items-table td {
+        padding: 4px 5px !important;
+        font-size: 10px !important;
+        line-height: 1.1 !important;
+    }
+
+    .item-desc-print {
+        font-size: 9.5px !important;
+        line-height: 1.1 !important;
+    }
+
+    /* QR toggle (history setting) */
+    body.hide-qr #invoice-qr-container {
+        display: none !important;
     }
 }
 
@@ -2757,6 +2842,18 @@ body.pdf-mode .ios-banner {
         background: linear-gradient(180deg, rgba(13, 61, 122, 0.11) 0%, rgba(13, 61, 122, 0.06) 100%);
         transform: translateY(-1px);
     }
+
+    .history-tools {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .qr-toggle-btn {
+        height: 40px;
+        padding: 0 12px;
+        font-size: 12px;
+    }
 }
 
 
@@ -2777,4 +2874,18 @@ body.pdf-mode .ios-banner {
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   QR CODE
+   ============================================================ */
+
+.qr-container {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0 10px;
+}
+
+.qr-card {
+    text-align: center;
 }

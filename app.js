@@ -7,6 +7,8 @@ let modalCallback = null;
 let currentLang = 'en';
 let userAcceptedUpdate = false;
 
+const QR_TOGGLE_KEY = 'invoice_show_qr';
+
 // =========================================
 // DATA MODEL
 // =========================================
@@ -795,7 +797,7 @@ function restorePrintLayout() {
 // =========================================
 // INIT
 // =========================================
-window.onload = function () {
+window.onload = async function () {
     loadAppData();
     ensureCurrentCompany();
 
@@ -815,7 +817,7 @@ window.onload = function () {
         currentLang = localStorage.getItem('db_lang') || 'en';
     }
 
-    renderInvoiceForm();
+    await renderInvoiceForm();
     renderHistory();
     renderClients();
     toggleClientForm(false);
@@ -830,7 +832,15 @@ window.onload = function () {
     refreshUnlockLogoButton();
     initLogoFormForCompany(getCurrentCompany());
     applyLang();
+    updateQrToggleButton();
+    updateDocumentTitleForPdf();
     initPWA();
+
+    if (isQrEnabled()) {
+        document.body.classList.remove('hide-qr');
+    } else {
+        document.body.classList.add('hide-qr');
+    }
 
     // No companies → open Companies page so user can add one
     if (noCompanies) {
@@ -857,10 +867,17 @@ window.onload = function () {
     // ---- PRINT: PDF-only cleanup + compact VAT ----
     
     window.addEventListener('beforeprint', function () {
+        if (isQrEnabled()) {
+            document.body.classList.remove('hide-qr');
+        } else {
+            document.body.classList.add('hide-qr');
+        }
+
         preparePrintLayout();
     });
 
     window.addEventListener('afterprint', function () {
+        document.body.classList.remove('hide-qr');
         restorePrintLayout();
     });
 };
@@ -882,7 +899,10 @@ function showPage(name) {
     if (tab) tab.classList.add('active');
     if (bottomTab) bottomTab.classList.add('active');
 
-    if (name === 'history') renderHistory();
+    if (name === 'history') {
+        renderHistory();
+        updateQrToggleButton();
+    }
     if (name === 'clients') renderClients();
     if (name === 'companies') renderCompanies();
 }
@@ -890,7 +910,7 @@ function showPage(name) {
 // =========================================
 // INVOICE FORM
 // =========================================
-function renderInvoiceForm() {
+async function renderInvoiceForm() {
     const ci = COMPANY_DATA.currentInvoice;
     const co = getCurrentCompany() || createEmptyCompany();
 
@@ -952,6 +972,31 @@ function renderInvoiceForm() {
 
     refreshVatVisibility();
     updateClientPrintBlock();
+ 
+    // QR CODE RENDER
+const qrContainer = document.getElementById('invoice-qr-container');
+if (qrContainer) {
+    qrContainer.style.display = 'flex';
+
+        const company = getCurrentCompany();
+
+        const invoiceData = {
+            num: COMPANY_DATA.currentInvoice.num || '',
+            total: parseFloat(document.getElementById('grand_total')?.innerText) || 0,
+            description: (COMPANY_DATA.currentInvoice.items || [])
+                .map(i => (i.desc || '').trim())
+                .filter(Boolean)
+                .join(', ')
+        };
+
+        const qrCompany = {
+            companyName: bankRecipValue || company?.name || '',
+            iban: bankIbanValue || '',
+            bic: bankBicValue || ''
+        };
+
+        await renderInvoicePaymentQR(qrContainer, qrCompany, invoiceData);
+}
 }
 
 function renderItemRows() {
@@ -1100,6 +1145,7 @@ function saveAllData() {
     calculateAll();
     updateClientPrintBlock();
     saveAppData();
+    updateDocumentTitleForPdf();
 }
 
 // =========================================
@@ -1226,7 +1272,7 @@ function renderHistory() {
     }).join('');
 }
 
-function loadInvoiceFromHistory(index) {
+async function loadInvoiceFromHistory(index) {
     const loaded = JSON.parse(JSON.stringify(COMPANY_DATA.invoices[index]));
     if (!loaded) return;
 
@@ -1247,13 +1293,14 @@ function loadInvoiceFromHistory(index) {
 }
 
     saveAppData();
-    renderInvoiceForm();
+    await renderInvoiceForm();
+    updateDocumentTitleForPdf();
     refreshClientPicker();
     showPage('invoice');
     showToast('📂 Invoice loaded');
 }
 
-function printInvoiceFromHistory(index) {
+async function printInvoiceFromHistory(index) {
     const inv = COMPANY_DATA.invoices[index];
     if (!inv) return;
 
@@ -1269,7 +1316,8 @@ function printInvoiceFromHistory(index) {
     }
 
     // განვაახლოთ ფორმა
-    renderInvoiceForm();
+    await renderInvoiceForm();
+    updateDocumentTitleForPdf();
     refreshClientPicker();
     updateClientPrintBlock();
     calculateAll();
@@ -1277,29 +1325,35 @@ function printInvoiceFromHistory(index) {
     // გადავიდეთ ინვოისის გვერდზე
     showPage('invoice');
 
-    // დაველოდოთ DOM-ის სრულ განახლებას
+    // დაველოდოთ DOM-ის და QR-ის სრულ განახლებას
+setTimeout(async () => {
+    calculateAll();
+    document.body.classList.add('printing-invoice');
+
+    const qrContainer = document.getElementById('invoice-qr-container');
+    await waitForQrRender(qrContainer, 2500);
+
     setTimeout(() => {
-        calculateAll();
-        document.body.classList.add('printing-invoice');
+        if (!isQrEnabled()) {
+            document.body.classList.add('hide-qr');
+        } else {
+            document.body.classList.remove('hide-qr');
+        }
 
-        setTimeout(() => {
-            // ✅ afterprint-ზე ვაბამ restore-ს — არა setTimeout-ზე.
-            // setTimeout(500) ნაადრევად აღადგენდა currentInvoice-ს,
-            // ამიტომ მეორე ბეჭდვისას previousInvoice უკვე პირველი
-            // დაბეჭდილი ინვოისი იყო და სულ ერთი და იგივე იბეჭდებოდა.
-            function onAfterPrint() {
-                window.removeEventListener('afterprint', onAfterPrint);
-                COMPANY_DATA.currentInvoice = previousInvoice;
-                renderInvoiceForm();
-                refreshClientPicker();
-                document.body.classList.remove('printing-invoice');
-                showPage(previousPage.replace('page-', ''));
-            }
+        function onAfterPrint() {
+            window.removeEventListener('afterprint', onAfterPrint);
+            document.body.classList.remove('hide-qr');
+            COMPANY_DATA.currentInvoice = previousInvoice;
+            renderInvoiceForm();
+            refreshClientPicker();
+            document.body.classList.remove('printing-invoice');
+            showPage(previousPage.replace('page-', ''));
+        }
 
-            window.addEventListener('afterprint', onAfterPrint);
-            window.print();
-        }, 150);
-    }, 300);
+        window.addEventListener('afterprint', onAfterPrint);
+        window.print();
+    }, 120);
+}, 300);
 }
 
 function deleteInvoice(index) {
@@ -1331,6 +1385,7 @@ function newInvoice() {
 
         saveAppData();
         renderInvoiceForm();
+        updateDocumentTitleForPdf();
         refreshClientPicker();
         showPage('invoice');
         showToast('➕ New Invoice');
@@ -1837,7 +1892,7 @@ function deleteCompany(id) {
     });
 }
 
-function switchCompany(id) {
+async function switchCompany(id) {
     if (!id || id === APP_DATA.currentCompanyId) return;
 
     const company = APP_DATA.companies.find(c => c.id === id);
@@ -1866,7 +1921,7 @@ function switchCompany(id) {
     // Refresh whole UI from selected company
     
     refreshNavCompanyPicker();
-    renderInvoiceForm();
+    await renderInvoiceForm();
     renderClients();
     refreshClientPicker();
     renderHistory();
@@ -1967,6 +2022,58 @@ function generateInvoiceNumber() {
 function getCurrentDate() {
     const d = new Date();
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function isQrEnabled() {
+    const saved = localStorage.getItem(QR_TOGGLE_KEY);
+    return saved !== '0'; // default = on
+}
+
+function setQrEnabled(value) {
+    localStorage.setItem(QR_TOGGLE_KEY, value ? '1' : '0');
+}
+
+function getPdfFileName(invoiceNum) {
+    const safeNum = String(invoiceNum || 'invoice').replace(/[^\w\-]+/g, '-');
+    const prefix = currentLang === 'de' ? 'Rechnung' : 'Invoice';
+    return `${prefix}-${safeNum}.pdf`;
+}
+
+function updateDocumentTitleForPdf() {
+    const invoiceNum = COMPANY_DATA?.currentInvoice?.num || 'invoice';
+    document.title = getPdfFileName(invoiceNum).replace(/\.pdf$/i, '');
+}
+
+function updateQrToggleButton() {
+    const btn = document.getElementById('qr_toggle_btn');
+    if (!btn) return;
+
+    const textEl = btn.querySelector('.qr-toggle-text');
+    const enabled = isQrEnabled();
+
+    if (textEl) {
+        textEl.textContent = enabled ? 'QR ON' : 'QR OFF';
+    }
+
+    if (enabled) {
+        btn.classList.add('active');
+    } else {
+        btn.classList.remove('active');
+    }
+}
+
+function toggleQrGlobal() {
+    const next = !isQrEnabled();
+    setQrEnabled(next);
+    updateQrToggleButton();
+
+    if (next) {
+        document.body.classList.remove('hide-qr');
+    } else {
+        document.body.classList.add('hide-qr');
+    }
+
+    showToast(next ? '✅ QR ON' : '🚫 QR OFF');
 }
 
 function esc(str) {
@@ -2262,6 +2369,338 @@ function handleImportFile(event) {
     };
 
     reader.readAsText(file);
+}
+
+ // =========================================
+// SEPA QR CODE (EUROPE ONLY)
+// =========================================
+
+function parseInvoiceAmount(value) {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return NaN;
+
+    let cleaned = value.trim().replace(/[€$£₾\s]/g, '');
+    cleaned = cleaned.replace(/[^\d.,-]/g, '');
+
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+
+    if (lastComma > lastDot) {
+        cleaned = cleaned.replace(/\./g, '');
+        cleaned = cleaned.replace(',', '.');
+    } else if (lastDot > lastComma) {
+        cleaned = cleaned.replace(/,/g, '');
+    } else if (lastComma !== -1) {
+        cleaned = cleaned.replace(',', '.');
+    }
+
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : NaN;
+}
+
+function cleanIban(iban) {
+    return String(iban || '')
+        .toUpperCase()
+        .replace(/\s+/g, '');
+}
+
+function isValidIban(iban) {
+    const v = cleanIban(iban);
+    return /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(v);
+}
+
+function safeText(value) {
+    return String(value || '').trim();
+}
+
+function getInvoiceQrPayload(company, invoice) {
+    const missing = [];
+    
+    const companyName = safeText(company?.companyName) || safeText(company?.name);
+    const iban = cleanIban(company?.iban);
+    const bic = safeText(company?.bic).replace(/\s+/g, '').toUpperCase();
+    
+    const invoiceNumber = safeText(invoice?.num) || safeText(invoice?.number);
+    const description = safeText(invoice?.description) || 
+                        safeText(invoice?.title) || 
+                        safeText(invoice?.service);
+    
+    const amountRaw = invoice?.total ?? invoice?.grandTotal ?? invoice?.amount;
+    const amount = parseInvoiceAmount(amountRaw);
+    
+    if (!companyName) missing.push('company name');
+    if (!iban) {
+        missing.push('IBAN');
+    } else if (!isValidIban(iban)) {
+        missing.push('valid IBAN');
+    }
+    if (!invoiceNumber) missing.push('invoice number');
+    if (!Number.isFinite(amount) || amount <= 0) missing.push('valid amount');
+    
+    if (missing.length) {
+        return {
+            ok: false,
+            message: `QR code missing: ${missing.join(', ')}`
+        };
+    }
+    
+    const amountEur = amount.toFixed(2);
+    const remittanceText = description 
+        ? `Invoice ${invoiceNumber} - ${description}`
+        : `Invoice ${invoiceNumber}`;
+    
+    const giroLines = [
+        'BCD',
+        '002',
+        '1',
+        'SCT',
+        bic || '',
+        companyName.slice(0, 70),
+        iban,
+        `EUR${amountEur}`,
+        '',
+        '',
+        remittanceText.slice(0, 140),
+        ''
+    ];
+    
+    return {
+        ok: true,
+        text: giroLines.join('\n'),
+        remittanceText: remittanceText,
+        amountEur: amountEur,
+        companyName: companyName,
+        invoiceNumber: invoiceNumber,
+        iban: iban,
+        bic: bic || 'Not required'
+    };
+}
+
+function generateSEPAQRCode(text, size = 180) {
+    return new Promise((resolve, reject) => {
+        if (typeof QRCode === 'undefined') {
+            reject(new Error('QRCode library not loaded'));
+            return;
+        }
+        
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.top = '-9999px';
+        document.body.appendChild(container);
+        
+        let timeoutId = null;
+        let intervalId = null;
+        
+        const cleanup = () => {
+            if (intervalId) clearInterval(intervalId);
+            if (timeoutId) clearTimeout(timeoutId);
+            if (container.parentNode) container.remove();
+        };
+        
+        new QRCode(container, {
+            text: text,
+            width: size * 2,
+            height: size * 2,
+            correctLevel: QRCode.CorrectLevel.M
+        });
+        
+        intervalId = setInterval(() => {
+            const canvas = container.querySelector('canvas');
+            const img = container.querySelector('img');
+            
+            if (canvas) {
+                try {
+                    const dataUrl = canvas.toDataURL('image/png');
+                    cleanup();
+                    resolve(dataUrl);
+                } catch (err) {
+                    cleanup();
+                    reject(new Error('Failed to convert canvas to image'));
+                }
+            } else if (img && img.complete && img.src) {
+                cleanup();
+                resolve(img.src);
+            }
+        }, 50);
+        
+        timeoutId = setTimeout(() => {
+            cleanup();
+            reject(new Error('QR code generation timeout'));
+        }, 2000);
+    });
+}
+
+function createQrCard(payload, qrDataUrl) {
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.style.cssText = `
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px;
+        background: #ffffff;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        min-width: 140px;
+        max-width: 160px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        margin: 6px auto;
+    `;
+
+    const title = document.createElement('div');
+    title.textContent = currentLang === 'de' ? 'GiroCode' : 'SEPA Payment';
+    title.style.cssText = `
+        font-size: 12px;
+        font-weight: 700;
+        color: #1a202c;
+        text-align: center;
+        letter-spacing: 0.3px;
+    `;
+
+    const qrImg = document.createElement('img');
+    qrImg.src = qrDataUrl;
+    qrImg.alt = currentLang === 'de' ? 'GiroCode' : 'QR Code';
+    qrImg.style.cssText = `
+        width: 100px;
+        height: 100px;
+        display: block;
+        border-radius: 6px;
+        background: white;
+        padding: 2px;
+        image-rendering: crisp-edges;
+    `;
+
+    const hint = document.createElement('div');
+    hint.textContent = currentLang === 'de'
+        ? 'Mit Ihrer Banking-App scannen'
+        : 'Scan with your banking app';
+    hint.style.cssText = `
+        font-size: 10px;
+        color: #64748b;
+        text-align: center;
+    `;
+
+    const info = document.createElement('div');
+    info.style.cssText = `
+        font-size: 10px;
+        line-height: 1.25;
+        color: #334155;
+        text-align: center;
+        background: #f8fafc;
+        padding: 6px;
+        border-radius: 8px;
+        width: 100%;
+    `;
+
+    const amountSpan = document.createElement('div');
+    amountSpan.style.fontWeight = '700';
+    amountSpan.style.fontSize = '12px';
+    amountSpan.textContent = `${payload.amountEur} EUR`;
+
+    const invoiceSpan = document.createElement('div');
+    invoiceSpan.style.fontSize = '9px';
+    invoiceSpan.style.marginTop = '2px';
+    invoiceSpan.textContent = `${currentLang === 'de' ? 'Rechnung' : 'Invoice'} ${payload.invoiceNumber}`;
+
+    info.appendChild(amountSpan);
+    info.appendChild(invoiceSpan);
+
+    card.appendChild(title);
+    card.appendChild(qrImg);
+    card.appendChild(hint);
+    card.appendChild(info);
+
+    return card;
+}
+
+function createErrorBox(message) {
+    const box = document.createElement('div');
+    box.style.cssText = `
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 500;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        max-width: 220px;
+        margin: 10px auto;
+    `;
+    box.textContent = message;
+    return box;
+}
+
+async function renderInvoicePaymentQR(targetEl, company, invoice) {
+    if (!targetEl) {
+        console.warn('renderInvoicePaymentQR: target element not found');
+        return;
+    }
+    
+    targetEl.innerHTML = '';
+    
+    if (typeof QRCode === 'undefined') {
+        targetEl.appendChild(createErrorBox(
+            'QR library not loaded. Please include qrcode.js'
+        ));
+        return;
+    }
+    
+    const payload = getInvoiceQrPayload(company, invoice);
+    
+    if (!payload.ok) {
+        targetEl.appendChild(createErrorBox(payload.message));
+        return;
+    }
+    
+    try {
+        const qrDataUrl = await generateSEPAQRCode(payload.text, 180);
+        const card = createQrCard(payload, qrDataUrl);
+        targetEl.appendChild(card);
+    } catch (error) {
+        console.error('QR generation error:', error);
+        targetEl.appendChild(createErrorBox(
+            'Failed to generate QR code. Please refresh and try again.'
+        ));
+    }
+}
+
+  function waitForQrRender(targetEl, timeout = 2500) {
+    return new Promise(resolve => {
+        if (!targetEl) {
+            resolve(false);
+            return;
+        }
+
+        const hasReadyQr = () => {
+            const img = targetEl.querySelector('img');
+            return !!(img && img.src && img.complete);
+        };
+
+        if (hasReadyQr()) {
+            resolve(true);
+            return;
+        }
+
+        const start = Date.now();
+
+        const interval = setInterval(() => {
+            if (hasReadyQr()) {
+                clearInterval(interval);
+                resolve(true);
+                return;
+            }
+
+            if (Date.now() - start >= timeout) {
+                clearInterval(interval);
+                resolve(false);
+            }
+        }, 50);
+    });
 }
 
 // ===== ERROR PREVENTION FUNCTIONS =====
