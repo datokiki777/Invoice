@@ -522,41 +522,47 @@ function initPWA() {
     }
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').then(registration => {
-            swRegistration = registration;
+    navigator.serviceWorker.register('./sw.js').then(registration => {
+        swRegistration = registration;
 
+        function checkForWaitingWorker() {
             if (registration.waiting) {
                 showUpdateBanner();
             }
+        }
 
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (!newWorker) return;
+        checkForWaitingWorker();
 
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        showUpdateBanner();
-                    }
-                });
+        registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    checkForWaitingWorker();
+                }
             });
-
-            registration.update().catch(() => {});
-        }).catch(error => {
-            console.error('SW registration failed:', error);
         });
 
-        let refreshing = false;
+        registration.update().then(() => {
+            setTimeout(() => {
+                registration.update().then(checkForWaitingWorker).catch(() => {});
+            }, 1500);
+        }).catch(() => {});
+    }).catch(error => {
+        console.error('SW registration failed:', error);
+    });
 
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
+    let refreshing = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
-
-         // reload only after user explicitly accepted update
         if (!userAcceptedUpdate) return;
 
-         refreshing = true;
-         window.location.reload();
-      });
-    }
+        refreshing = true;
+        window.location.reload();
+    });
+}
 }
 
  // =========================================
