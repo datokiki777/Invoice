@@ -1,4 +1,4 @@
-const CACHE_NAME = 'invoice-pwa-v2.7.0';
+const CACHE_NAME = 'invoice-pwa-v2.7.5';
 
 const APP_SHELL = [
   './',
@@ -6,8 +6,15 @@ const APP_SHELL = [
   './style.css',
   './app.js',
   './manifest.json',
+
+  './icon-72.png',
+  './icon-96.png',
+  './icon-128.png',
   './icon-192.png',
-  './icon-512.png'
+  './icon-256.png',
+  './icon-512.png',
+
+  './apple-touch-icon.png'
 ];
 
 // Install: preload ONLY this version's app shell into this version's cache
@@ -15,7 +22,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
-  // აქ intentionally skipWaiting არ არის
+  // intentionally no skipWaiting here
 });
 
 // Activate: remove old caches only after this SW becomes active
@@ -45,8 +52,13 @@ function isAppShellRequest(request) {
     url.pathname.endsWith('/style.css') ||
     url.pathname.endsWith('/app.js') ||
     url.pathname.endsWith('/manifest.json') ||
+    url.pathname.endsWith('/icon-72.png') ||
+    url.pathname.endsWith('/icon-96.png') ||
+    url.pathname.endsWith('/icon-128.png') ||
     url.pathname.endsWith('/icon-192.png') ||
-    url.pathname.endsWith('/icon-512.png')
+    url.pathname.endsWith('/icon-256.png') ||
+    url.pathname.endsWith('/icon-512.png') ||
+    url.pathname.endsWith('/apple-touch-icon.png')
   );
 }
 
@@ -69,13 +81,11 @@ self.addEventListener('fetch', event => {
 
         if (cached) return cached;
 
-        // fallback for navigation aliases like "/" -> "./index.html"
         if (request.mode === 'navigate') {
           const fallbackIndex = await cache.match('./index.html');
           if (fallbackIndex) return fallbackIndex;
         }
 
-        // only if something was not precached for some reason
         return fetch(request);
       })
     );
@@ -87,8 +97,14 @@ self.addEventListener('fetch', event => {
       if (cached) return cached;
 
       return fetch(request).then(networkResponse => {
-        const copy = networkResponse.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          request.method === 'GET'
+        ) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        }
         return networkResponse;
       });
     })
