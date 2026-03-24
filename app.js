@@ -1312,9 +1312,9 @@ function renderHistory() {
             const paymentStatus = getInvoicePaymentStatus(inv);
         const paymentLabel = paymentStatus === 'paid' ? '✅ Paid' : '○ Unpaid';
         const paymentBtnClass = paymentStatus === 'paid' ? '' : '';
-        const paymentBtnStyle = paymentStatus === 'paid'
-            ? 'background:#ecfdf5;color:#166534;'
-            : 'background:#fff7ed;color:#c05621;';
+const paymentBtnStyle = paymentStatus === 'paid'
+    ? 'background:#e8f1ff;color:#174ea6;border:1.5px solid #b7cdf7;font-weight:800;box-shadow:0 4px 12px rgba(23,78,166,0.12);'
+    : 'background:#fff2e8;color:#b85c1e;border:1.5px solid #f0c7a8;font-weight:800;box-shadow:0 4px 12px rgba(184,92,30,0.12);';
 
         return `
         <div class="history-card ${isCurrent ? 'current' : ''}">
@@ -1340,10 +1340,10 @@ function renderHistory() {
                 </span>
 
                 <span class="hist-badge" style="${paymentStatus === 'paid'
-                    ? 'background:#ecfdf5;color:#166534;'
-                    : 'background:#fff7ed;color:#c05621;'}">
-                    ${paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                </span>
+    ? 'background:#e8f1ff;color:#174ea6;border:1.5px solid #b7cdf7;font-weight:800;box-shadow:0 3px 10px rgba(23,78,166,0.08);'
+    : 'background:#fff2e8;color:#b85c1e;border:1.5px solid #f0c7a8;font-weight:800;box-shadow:0 3px 10px rgba(184,92,30,0.08);'}">
+    ${paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+</span>
 
                 <div class="hist-total-block">
                     <div class="hist-total-label">TOTAL</div>

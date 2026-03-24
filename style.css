@@ -1338,11 +1338,26 @@ body {
     margin-top: 6px;
     display: inline-flex;
     align-items: center;
-    padding: 6px 14px;
+    justify-content: center;
+    padding: 8px 16px;
     border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 800;
     line-height: 1;
+    border: 1.5px solid transparent;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+}
+
+.badge-paid {
+    background: #dff4e4;
+    color: #17663a;
+    border-color: #b7e3c1;
+}
+
+.badge-unpaid {
+    background: #fff1e7;
+    color: #b85c1e;
+    border-color: #f3cfb3;
 }
 
 .hist-total-block {
@@ -3237,3 +3252,4 @@ body.pdf-mode .ios-banner {
         font-size: 12px;
     }
 }
+
