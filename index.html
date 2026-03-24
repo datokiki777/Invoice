@@ -270,13 +270,17 @@
         </div>
 
         <div class="history-tools">
-            <button id="qr_toggle_btn" class="qr-toggle-btn" onclick="toggleQrGlobal()">
-                <span class="qr-toggle-dot"></span>
-                <span class="qr-toggle-text">QR ON</span>
-            </button>
+    <div class="history-top-actions">
+        <button id="qr_toggle_btn" class="qr-toggle-btn" onclick="toggleQrGlobal()">
+            <span class="qr-toggle-dot"></span>
+            <span class="qr-toggle-text">QR ON</span>
+        </button>
 
-            <button class="btn btn-primary" onclick="newInvoice()">➕ New Invoice</button>
-        </div>
+        <button class="history-main-action history-main-action-small" onclick="exportInvoicesCsv()">📄 CSV</button>
+        <button class="history-main-action history-main-action-small" onclick="openStatsPage()">📊 Stats</button>
+        <button class="btn btn-primary history-new-btn" onclick="newInvoice()">➕ New Invoice</button>
+    </div>
+</div>
     </div>
 
     <div class="history-list" id="history-list">
@@ -497,6 +501,41 @@
         </div>
     </div>
 </div>
+
+  <section id="page-stats" class="page">
+    <div class="page-card">
+        <div class="section-title-row">
+            <h2>Statistics</h2>
+        </div>
+
+        <div class="stats-filter-grid">
+    <div class="form-group">
+        <label for="stats_date_to">Date To</label>
+        <input type="date" id="stats_date_to">
+    </div>
+
+    <div class="form-group">
+        <label for="stats_date_from">Date From</label>
+        <input type="date" id="stats_date_from">
+    </div>
+</div>
+
+        <div class="stats-actions-row">
+    <button class="stats-btn stats-btn-main" onclick="applyInvoiceStats()">Apply Filter</button>
+    <button class="stats-btn stats-btn-light" onclick="resetInvoiceStats()">Reset</button>
+    <button class="stats-btn stats-btn-back" onclick="showPage('history')">← Back</button>
+</div>
+
+        <div id="stats-summary-cards" class="stats-summary-cards"></div>
+
+        <div class="page-card" style="margin-top:14px;">
+            <div class="section-title-row">
+                <h3>Filtered Invoices</h3>
+            </div>
+            <div id="stats-invoice-list"></div>
+        </div>
+    </div>
+</section>
 
 <!-- Toast -->
 

@@ -6,6 +6,9 @@ let swRegistration = null;
 let modalCallback = null;
 let currentLang = 'en';
 let userAcceptedUpdate = false;
+let isEditingSavedInvoice = false;
+let savedInvoiceEditConfirmed = false;
+let isApplyingProtectedEdit = false;
 
 const QR_TOGGLE_KEY = 'invoice_show_qr';
 
@@ -117,14 +120,15 @@ function createEmptyCompanyData() {
         invoices: [],
         clients: [],
         currentInvoice: {
-        num: '',
-        date: getCurrentDate(),
-        client: '',
-        clientId: '',
-        vatRate: 0,
-        vatText: '',
-       items: [{ desc: '', qty: 1, price: 0 }]
-       }
+            num: '',
+            date: getCurrentDate(),
+            client: '',
+            clientId: '',
+            vatRate: 0,
+            vatText: '',
+            paymentStatus: 'unpaid',
+            items: [{ desc: '', qty: 1, price: 0 }]
+        }
     };
 }
 
@@ -264,6 +268,15 @@ function loadCompanyData(id) {
                 clients: Array.isArray(parsed.clients) ? parsed.clients : [],
                 currentInvoice: parsed.currentInvoice || null
             };
+            COMPANY_DATA.invoices = (COMPANY_DATA.invoices || []).map(inv => ({
+                ...inv,
+                paymentStatus: inv.paymentStatus || 'unpaid'
+            }));
+
+            if (COMPANY_DATA.currentInvoice) {
+                COMPANY_DATA.currentInvoice.paymentStatus =
+                    COMPANY_DATA.currentInvoice.paymentStatus || 'unpaid';
+            }
         } catch (e) {
             COMPANY_DATA = createEmptyCompanyData();
         }
@@ -284,9 +297,11 @@ function loadCompanyData(id) {
             clientId: '',
             vatRate: 0,
             vatText: '',
+            paymentStatus: 'unpaid',
             items: [{ desc: '', qty: 1, price: 0 }]
         };
     }
+    syncSavedInvoiceProtection();
 }
 
 function saveCompanyData() {
@@ -911,6 +926,7 @@ function showPage(name) {
     }
     if (name === 'clients') renderClients();
     if (name === 'companies') renderCompanies();
+    if (name === 'stats') applyInvoiceStats();
 }
 
 // =========================================
@@ -954,6 +970,38 @@ async function renderInvoiceForm() {
     document.getElementById('client_info').value = ci.client || '';
     document.getElementById('vat_rate').value = (ci.vatRate != null) ? ci.vatRate : 0;
     document.getElementById('vat_text').value = ci.vatText || '';
+    
+    const protectedFieldIds = ['inv_num', 'inv_date', 'client_info', 'vat_rate', 'vat_text'];
+
+    protectedFieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        if (!el.dataset.protectBound) {
+            el.addEventListener('beforeinput', function (e) {
+                if (savedInvoiceEditConfirmed || !isEditingSavedInvoice) return;
+                if (e.inputType && e.inputType.startsWith('insert')) {
+                    if (!requestProtectedFieldEdit(this)) {
+                        e.preventDefault();
+                    }
+                }
+                if (e.inputType && e.inputType.startsWith('delete')) {
+                    if (!requestProtectedFieldEdit(this)) {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            el.addEventListener('paste', function (e) {
+                if (savedInvoiceEditConfirmed || !isEditingSavedInvoice) return;
+                if (!requestProtectedFieldEdit(this)) {
+                    e.preventDefault();
+                }
+            });
+
+            el.dataset.protectBound = '1';
+        }
+    });
 
     if (!ci.items || !Array.isArray(ci.items) || ci.items.length === 0) {
         ci.items = [{ desc: '', qty: 1, price: 0 }];
@@ -1020,7 +1068,9 @@ function renderItemRows() {
         tr.innerHTML = `
             <td class="item-desc-cell">
                 <input type="text" class="item-desc-input no-print" value="${esc(item.desc)}"
-                    oninput="updateItem(${i}, 'desc', this.value)" placeholder="Description of work...">
+    oninput="updateItem(${i}, 'desc', this.value)"
+    autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false"
+    placeholder="Description of work...">
                 <div class="item-desc-print print-only">${escapedDesc}</div>
             </td>
             <td style="text-align:center">
@@ -1048,9 +1098,11 @@ function renderItemRows() {
 }
 
 function updateItem(index, field, value) {
-    COMPANY_DATA.currentInvoice.items[index][field] = value;
-    calculateAll();
-    saveAppData();
+    ensureSavedInvoiceEditConfirmed(() => {
+        COMPANY_DATA.currentInvoice.items[index][field] = value;
+        calculateAll();
+        saveAppData();
+    });
 }
 
 function addItemRow() {
@@ -1138,7 +1190,7 @@ function calculateAll() {
     saveAppData();
 }
 
-function saveAllData() {
+function performSaveAllData() {
     COMPANY_DATA.currentInvoice.num = document.getElementById('inv_num').value;
     COMPANY_DATA.currentInvoice.date = document.getElementById('inv_date').value;
     COMPANY_DATA.currentInvoice.client = document.getElementById('client_info').value;
@@ -1147,11 +1199,19 @@ function saveAllData() {
     COMPANY_DATA.currentInvoice.vatRate = vatRaw === '' ? 0 : (parseFloat(vatRaw) || 0);
 
     COMPANY_DATA.currentInvoice.vatText = document.getElementById('vat_text').value.trim();
+    COMPANY_DATA.currentInvoice.paymentStatus =
+        COMPANY_DATA.currentInvoice.paymentStatus || 'unpaid';
 
     calculateAll();
     updateClientPrintBlock();
     saveAppData();
     updateDocumentTitleForPdf();
+}
+
+function saveAllData() {
+    ensureSavedInvoiceEditConfirmed(() => {
+        performSaveAllData();
+    });
 }
 
 // =========================================
@@ -1171,8 +1231,7 @@ if (errors.length > 0) {
         return;
     }
 
-    // ჯერ ფორმიდან წამოიღოს ყველა მიმდინარე მნიშვნელობა
-    saveAllData();
+    performSaveAllData();
 
     // save-ის წინ გაწმინდოს 0-თანხიანი row-ები
     cleanupInvoiceItemsForSave();
@@ -1193,12 +1252,14 @@ const hasAmountRow = (ci.items || []).some(item => {
     const invoiceCopy = JSON.parse(JSON.stringify(ci));
     // clientId უკვე არის currentInvoice-ში, აღარ გვჭირდება დამატებითი შემოწმება
     invoiceCopy.savedAt = new Date().toISOString();
+    const existingInvoice = COMPANY_DATA.invoices.find(inv => inv.num === invoiceCopy.num);
+    invoiceCopy.paymentStatus = invoiceCopy.paymentStatus || existingInvoice?.paymentStatus || 'unpaid';
 
     // ბანკის მონაცემებიც შეინახოს snapshot-ად
-    invoiceCopy.bankRecip = company.bankRecip || '';
-    invoiceCopy.bankName = company.bankName || '';
-    invoiceCopy.bankIban = company.bankIban || '';
-    invoiceCopy.bankBic = company.bankBic || '';
+    invoiceCopy.bankRecip = document.getElementById('bank_recip')?.value.trim() || '';
+    invoiceCopy.bankName = document.getElementById('bank_name')?.value.trim() || '';
+    invoiceCopy.bankIban = document.getElementById('bank_iban')?.value.trim() || '';
+    invoiceCopy.bankBic = document.getElementById('bank_bic')?.value.trim() || '';
 
     const existingIndex = COMPANY_DATA.invoices.findIndex(inv => inv.num === invoiceCopy.num);
 
@@ -1212,6 +1273,7 @@ const hasAmountRow = (ci.items || []).some(item => {
     COMPANY_DATA.currentInvoice = JSON.parse(JSON.stringify(invoiceCopy));
     delete COMPANY_DATA.currentInvoice.savedAt;
 
+    syncSavedInvoiceProtection();
     saveAppData();
     renderHistory();
     renderInvoiceForm();
@@ -1246,6 +1308,13 @@ function renderHistory() {
         const savedDate = inv.savedAt
             ? new Date(inv.savedAt).toLocaleDateString('ka-GE')
             : '';
+            
+            const paymentStatus = getInvoicePaymentStatus(inv);
+        const paymentLabel = paymentStatus === 'paid' ? '✅ Paid' : '○ Unpaid';
+        const paymentBtnClass = paymentStatus === 'paid' ? '' : '';
+        const paymentBtnStyle = paymentStatus === 'paid'
+            ? 'background:#ecfdf5;color:#166534;'
+            : 'background:#fff7ed;color:#c05621;';
 
         return `
         <div class="history-card ${isCurrent ? 'current' : ''}">
@@ -1255,10 +1324,11 @@ function renderHistory() {
                 <div class="hist-meta">📅 ${esc(inv.date)}</div>
 
                 <div class="hist-actions">
-                    <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
-                    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
-                    <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
-                </div>
+    <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
+    <button class="hist-btn ${paymentBtnClass}" style="${paymentBtnStyle}" onclick="toggleInvoicePaymentStatus(${realIdx})">${paymentLabel}</button>
+    <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
+    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
+</div>
             </div>
 
             <div class="hist-right">
@@ -1267,6 +1337,12 @@ function renderHistory() {
 
                 <span class="hist-badge ${isCurrent ? 'badge-current' : 'badge-saved'}">
                     ${isCurrent ? '● Current' : '✓ Saved'}
+                </span>
+
+                <span class="hist-badge" style="${paymentStatus === 'paid'
+                    ? 'background:#ecfdf5;color:#166534;'
+                    : 'background:#fff7ed;color:#c05621;'}">
+                    ${paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                 </span>
 
                 <div class="hist-total-block">
@@ -1281,6 +1357,8 @@ function renderHistory() {
 async function loadInvoiceFromHistory(index) {
     const loaded = JSON.parse(JSON.stringify(COMPANY_DATA.invoices[index]));
     if (!loaded) return;
+    
+    loaded.paymentStatus = loaded.paymentStatus || 'unpaid';
 
     delete loaded.savedAt;
 
@@ -1298,12 +1376,13 @@ async function loadInvoiceFromHistory(index) {
     }
 }
 
+    syncSavedInvoiceProtection();
     saveAppData();
     await renderInvoiceForm();
     updateDocumentTitleForPdf();
     refreshClientPicker();
     showPage('invoice');
-    showToast('📂 Invoice loaded');
+    showToast(loaded.paymentStatus === 'paid' ? '📂 Paid invoice loaded' : '📂 Invoice loaded');
 }
 
 async function printInvoiceFromHistory(index) {
@@ -1364,11 +1443,55 @@ setTimeout(async () => {
 
 function deleteInvoice(index) {
     confirmAction('Delete Invoice', `Delete invoice #${COMPANY_DATA.invoices[index].num}? This cannot be undone.`, () => {
+        const deleted = COMPANY_DATA.invoices[index];
+
         COMPANY_DATA.invoices.splice(index, 1);
+
+        if (
+            deleted &&
+            COMPANY_DATA.currentInvoice &&
+            String(COMPANY_DATA.currentInvoice.num || '') === String(deleted.num || '')
+        ) {
+            resetSavedInvoiceProtection();
+        }
+
         saveAppData();
         renderHistory();
         showToast('🗑️ Invoice deleted');
     });
+}
+
+ function getInvoicePaymentStatus(inv) {
+    return inv && inv.paymentStatus === 'paid' ? 'paid' : 'unpaid';
+}
+
+function toggleInvoicePaymentStatus(index) {
+    const inv = COMPANY_DATA.invoices[index];
+    if (!inv) return;
+
+    const currentStatus = getInvoicePaymentStatus(inv);
+    const nextStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+
+    confirmAction(
+        nextStatus === 'paid' ? 'Mark as Paid' : 'Mark as Unpaid',
+        nextStatus === 'paid'
+            ? `Mark invoice #${inv.num} as paid?`
+            : `Mark invoice #${inv.num} as unpaid?`,
+        () => {
+            inv.paymentStatus = nextStatus;
+
+            if (
+                COMPANY_DATA.currentInvoice &&
+                String(COMPANY_DATA.currentInvoice.num || '') === String(inv.num || '')
+            ) {
+                COMPANY_DATA.currentInvoice.paymentStatus = inv.paymentStatus;
+            }
+
+            saveAppData();
+            renderHistory();
+            showToast(inv.paymentStatus === 'paid' ? '✅ Marked as paid' : '↩️ Marked as unpaid');
+        }
+    );
 }
 
 // =========================================
@@ -1386,9 +1509,11 @@ function newInvoice() {
             clientId: '',
             vatRate: 0,
             vatText: '',
+            paymentStatus: 'unpaid',
             items: [{ desc: '', qty: 1, price: 0 }]
         };
 
+        resetSavedInvoiceProtection();
         saveAppData();
         renderInvoiceForm();
         updateDocumentTitleForPdf();
@@ -1396,10 +1521,7 @@ function newInvoice() {
         showPage('invoice');
         showToast('➕ New Invoice');
         
-        const currentClientId = COMPANY_DATA.currentInvoice.clientId;
-        if (currentClientId) {
-            loadLastInvoiceDescriptionForClient(currentClientId);
-        }
+        
     });
 }
 
@@ -1622,38 +1744,41 @@ function loadLastInvoiceDescriptionForClient(clientId) {
 }
 
 function fillClientFromPicker() {
-    const id = document.getElementById('client_picker').value;
-    if (!id) {
-        COMPANY_DATA.currentInvoice.client = '';
-        COMPANY_DATA.currentInvoice.clientId = '';
-        document.getElementById('client_info').value = '';
+    ensureSavedInvoiceEditConfirmed(() => {
+        const id = document.getElementById('client_picker').value;
+
+        if (!id) {
+            COMPANY_DATA.currentInvoice.client = '';
+            COMPANY_DATA.currentInvoice.clientId = '';
+            document.getElementById('client_info').value = '';
+            saveAppData();
+            return;
+        }
+
+        const c = COMPANY_DATA.clients.find(cl => cl.id === id);
+        if (!c) {
+            document.getElementById('client_picker').value = '';
+            showToast('⚠️ Selected client not found');
+            return;
+        }
+
+        let info = c.name;
+        if (c.reg) info += '\n' + c.reg;
+        if (c.addr) info += '\n' + c.addr;
+        if (c.email) info += '\n' + c.email;
+        if (c.phone) info += '\n' + c.phone;
+
+        COMPANY_DATA.currentInvoice.client = info;
+        COMPANY_DATA.currentInvoice.clientId = id;
+        document.getElementById('client_info').value = info;
+
         saveAppData();
-        return;
-    }
+        renderClients();
+        renderInvoiceForm();
+        showToast('👤 ' + c.name);
 
-    const c = COMPANY_DATA.clients.find(cl => cl.id === id);
-    if (!c) {
-        document.getElementById('client_picker').value = '';
-        showToast('⚠️ Selected client not found');
-        return;
-    }
-
-    let info = c.name;
-    if (c.reg) info += '\n' + c.reg;
-    if (c.addr) info += '\n' + c.addr;
-    if (c.email) info += '\n' + c.email;
-    if (c.phone) info += '\n' + c.phone;
-
-    COMPANY_DATA.currentInvoice.client = info;
-    COMPANY_DATA.currentInvoice.clientId = id;
-    document.getElementById('client_info').value = info;
-
-    saveAppData();
-    renderClients();
-    renderInvoiceForm();
-    showToast('👤 ' + c.name);
-    
-    loadLastInvoiceDescriptionForClient(id);
+        loadLastInvoiceDescriptionForClient(id);
+    });
 }
 
 
@@ -2030,6 +2155,58 @@ function getCurrentDate() {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+  function parseAppDate(dateStr) {
+    const raw = String(dateStr || '').trim();
+    if (!raw) return null;
+
+    const parts = raw.split('/');
+    if (parts.length !== 3) return null;
+
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    if (!day || !month || !year) return null;
+
+    const d = new Date(year, month - 1, day);
+    if (
+        d.getFullYear() !== year ||
+        d.getMonth() !== month - 1 ||
+        d.getDate() !== day
+    ) {
+        return null;
+    }
+
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+ function parseStatsInputDate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+
+    const parts = raw.split('-');
+    if (parts.length !== 3) return null;
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+
+    if (!year || !month || !day) return null;
+
+    const d = new Date(year, month - 1, day);
+    if (
+        d.getFullYear() !== year ||
+        d.getMonth() !== month - 1 ||
+        d.getDate() !== day
+    ) {
+        return null;
+    }
+
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
 function isQrEnabled() {
     const saved = localStorage.getItem(QR_TOGGLE_KEY);
     return saved !== '0'; // default = on
@@ -2048,6 +2225,254 @@ function getPdfFileName(invoiceNum) {
 function updateDocumentTitleForPdf() {
     const invoiceNum = COMPANY_DATA?.currentInvoice?.num || 'invoice';
     document.title = getPdfFileName(invoiceNum).replace(/\.pdf$/i, '');
+}
+
+function csvEscape(value) {
+    const str = String(value ?? '');
+    return `"${str.replace(/"/g, '""')}"`;
+}
+
+function getInvoiceAmounts(inv) {
+    const subtotal = (inv.items || []).reduce((sum, item) => {
+        const qty = parseFloat(item.qty) || 0;
+        const price = parseFloat(item.price) || 0;
+        return sum + qty * price;
+    }, 0);
+
+    const vatRate = parseFloat(inv.vatRate) || 0;
+    const vatAmount = vatRate > 0 ? subtotal * (vatRate / 100) : 0;
+    const total = subtotal + vatAmount;
+
+    return { subtotal, vatRate, vatAmount, total };
+}
+
+function exportInvoicesCsv() {
+    const invoices = COMPANY_DATA.invoices || [];
+
+    if (!invoices.length) {
+        showToast('⚠️ No invoices to export');
+        return;
+    }
+
+    const rows = [
+        [
+            'Invoice Number',
+            'Date',
+            'Client',
+            'Description',
+            'Subtotal',
+            'VAT Rate',
+            'VAT Amount',
+            'Total',
+            'Payment Status',
+            'Saved At'
+        ]
+    ];
+
+    invoices.forEach(inv => {
+        const { subtotal, vatRate, vatAmount, total } = getInvoiceAmounts(inv);
+
+        const clientName = String(inv.client || '').split('\n')[0] || '';
+        const description = (inv.items || [])
+            .map(item => String(item.desc || '').trim())
+            .filter(Boolean)
+            .join(' | ');
+
+        rows.push([
+            inv.num || '',
+            inv.date || '',
+            clientName,
+            description,
+            subtotal.toFixed(2),
+            vatRate.toFixed(2),
+            vatAmount.toFixed(2),
+            total.toFixed(2),
+            getInvoicePaymentStatus(inv),
+            inv.savedAt || ''
+        ]);
+    });
+
+    const csv = rows.map(row => row.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+    showToast('✅ CSV exported');
+}
+
+  function filterInvoicesByStatsDate(invoices, fromDateStr, toDateStr) {
+    const fromDate = parseStatsInputDate(fromDateStr);
+    const toDate = parseStatsInputDate(toDateStr);
+
+    return (invoices || []).filter(inv => {
+        const invDate = parseAppDate(inv.date);
+        if (!invDate) return false;
+
+        if (fromDate && invDate < fromDate) return false;
+        if (toDate && invDate > toDate) return false;
+
+        return true;
+    });
+}
+
+function renderStatsSummary(filteredInvoices) {
+    const summaryEl = document.getElementById('stats-summary-cards');
+    if (!summaryEl) return;
+
+    let paidCount = 0;
+    let unpaidCount = 0;
+
+    let subtotalSum = 0;
+    let vatSum = 0;
+    let totalSum = 0;
+
+    let paidTotal = 0;
+    let unpaidTotal = 0;
+
+    let paidVat = 0;
+
+    filteredInvoices.forEach(inv => {
+        const { subtotal, vatAmount, total } = getInvoiceAmounts(inv);
+
+        subtotalSum += subtotal;
+        vatSum += vatAmount;
+        totalSum += total;
+
+        const status = getInvoicePaymentStatus(inv);
+
+        if (status === 'paid') {
+            paidCount++;
+            paidTotal += total;
+            paidVat += vatAmount;
+        } else {
+            unpaidCount++;
+            unpaidTotal += total;
+        }
+    });
+
+    summaryEl.innerHTML = `
+        <div class="stats-card">
+            <div class="stats-card-label">Total Invoices</div>
+            <div class="stats-card-value">${filteredInvoices.length}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">Paid</div>
+            <div class="stats-card-value">${paidCount}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">Unpaid</div>
+            <div class="stats-card-value">${unpaidCount}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">Paid Total</div>
+            <div class="stats-card-value">€${paidTotal.toFixed(2)}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">Unpaid Total</div>
+            <div class="stats-card-value">€${unpaidTotal.toFixed(2)}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">VAT (Paid)</div>
+            <div class="stats-card-value">€${paidVat.toFixed(2)}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">VAT (All)</div>
+            <div class="stats-card-value">€${vatSum.toFixed(2)}</div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stats-card-label">Total Revenue</div>
+            <div class="stats-card-value">€${totalSum.toFixed(2)}</div>
+        </div>
+    `;
+}
+
+function renderStatsInvoiceList(filteredInvoices) {
+    const listEl = document.getElementById('stats-invoice-list');
+    if (!listEl) return;
+
+    if (!filteredInvoices.length) {
+        listEl.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <p>No invoices in selected range</p>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = filteredInvoices.map(inv => {
+        const { total } = getInvoiceAmounts(inv);
+        const clientName = String(inv.client || '').split('\n')[0] || 'No client';
+        const status = getInvoicePaymentStatus(inv);
+
+        return `
+            <div class="stats-list-card">
+                <div class="stats-list-top">
+                    <div class="stats-list-num">${esc(inv.num || '')}</div>
+                    <div class="stats-list-total">€${total.toFixed(2)}</div>
+                </div>
+                <div class="stats-list-client">${esc(clientName)}</div>
+                <div class="stats-list-date">📅 ${esc(inv.date || '')}</div>
+                <div class="stats-list-status">${status === 'paid' ? '✅ Paid' : '○ Unpaid'}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function applyInvoiceStats() {
+    const fromEl = document.getElementById('stats_date_from');
+    const toEl = document.getElementById('stats_date_to');
+
+    const fromValue = fromEl ? fromEl.value.trim() : '';
+    const toValue = toEl ? toEl.value.trim() : '';
+
+    if (fromValue && !parseStatsInputDate(fromValue)) {
+        showToast('⚠️ Invalid Date From');
+        return;
+    }
+
+    if (toValue && !parseStatsInputDate(toValue)) {
+        showToast('⚠️ Invalid Date To');
+        return;
+    }
+
+    const filteredInvoices = filterInvoicesByStatsDate(
+        COMPANY_DATA.invoices || [],
+        fromValue,
+        toValue
+    );
+
+    renderStatsSummary(filteredInvoices);
+    renderStatsInvoiceList(filteredInvoices);
+}
+
+function resetInvoiceStats() {
+    const fromEl = document.getElementById('stats_date_from');
+    const toEl = document.getElementById('stats_date_to');
+
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+
+    applyInvoiceStats();
+}
+
+function openStatsPage() {
+    showPage('stats');
+    resetInvoiceStats();
 }
 
 function updateQrToggleButton() {
@@ -2110,6 +2535,79 @@ function confirmAction(title, msg, callback) {
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('show');
     modalCallback = null;
+}
+
+ function isCurrentInvoiceSaved() {
+    const num = String(COMPANY_DATA?.currentInvoice?.num || '').trim();
+    if (!num) return false;
+
+    return (COMPANY_DATA.invoices || []).some(inv => String(inv.num || '').trim() === num);
+}
+
+function syncSavedInvoiceProtection() {
+    isEditingSavedInvoice = isCurrentInvoiceSaved();
+    savedInvoiceEditConfirmed = false;
+}
+
+function resetSavedInvoiceProtection() {
+    isEditingSavedInvoice = false;
+    savedInvoiceEditConfirmed = false;
+}
+
+function ensureSavedInvoiceEditConfirmed(applyChange) {
+    if (!isEditingSavedInvoice || savedInvoiceEditConfirmed || isApplyingProtectedEdit) {
+        applyChange();
+        return;
+    }
+
+    confirmAction(
+        'Edit Saved Invoice',
+        'This invoice is already saved. Are you sure you want to edit it?',
+        () => {
+            savedInvoiceEditConfirmed = true;
+            isApplyingProtectedEdit = true;
+
+            try {
+                applyChange();
+            } finally {
+                isApplyingProtectedEdit = false;
+            }
+
+            showToast('✏️ Saved invoice unlocked for editing');
+        }
+    );
+}
+
+ function requestProtectedFieldEdit(inputEl) {
+    if (!inputEl) return false;
+    if (!isEditingSavedInvoice || savedInvoiceEditConfirmed || isApplyingProtectedEdit) return true;
+    if (inputEl.dataset.protectBusy === '1') return false;
+
+    inputEl.dataset.protectBusy = '1';
+
+    const oldValue = inputEl.value;
+
+    confirmAction(
+        'Edit Saved Invoice',
+        'This invoice is already saved. Are you sure you want to edit it?',
+        () => {
+            savedInvoiceEditConfirmed = true;
+
+            setTimeout(() => {
+                inputEl.focus();
+                inputEl.value = oldValue;
+                inputEl.removeAttribute('data-protect-busy');
+            }, 30);
+
+            showToast('✏️ Saved invoice unlocked for editing');
+        }
+    );
+
+    setTimeout(() => {
+        inputEl.removeAttribute('data-protect-busy');
+    }, 300);
+
+    return false;
 }
 
 function setTxt(sel, txt) {
@@ -2744,23 +3242,23 @@ function validateVatRate(input) {
 }
 
  function handleVatInput(input) {
-    // აკრეფის დროს მივუშვათ ცარიელი მნიშვნელობაც,
-    // რომ 0 არ ჩაისვას წინ ავტომატურად
-    const raw = input.value.trim();
+    ensureSavedInvoiceEditConfirmed(() => {
+        const raw = input.value.trim();
 
-    if (raw === '') {
-        COMPANY_DATA.currentInvoice.vatRate = 0;
+        if (raw === '') {
+            COMPANY_DATA.currentInvoice.vatRate = 0;
+            calculateAll();
+            return;
+        }
+
+        const val = parseFloat(raw);
+
+        if (!isNaN(val)) {
+            COMPANY_DATA.currentInvoice.vatRate = val;
+        }
+
         calculateAll();
-        return;
-    }
-
-    const val = parseFloat(raw);
-
-    if (!isNaN(val)) {
-        COMPANY_DATA.currentInvoice.vatRate = val;
-    }
-
-    calculateAll();
+    });
 }
 
 function validateInvoiceBeforeSave() {
