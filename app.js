@@ -9,6 +9,7 @@ let userAcceptedUpdate = false;
 let isEditingSavedInvoice = false;
 let savedInvoiceEditConfirmed = false;
 let isApplyingProtectedEdit = false;
+let qrStateBeforePrint = false;
 
 const QR_TOGGLE_KEY = 'invoice_show_qr';
 
@@ -157,6 +158,14 @@ function ensureCurrentCompany() {
     }
 }
 
+function getNavCompanyShortName(name) {
+    const text = String(name || '').trim();
+    if (!text) return 'Untitled';
+
+    const words = text.split(/\s+/);
+    return words.slice(0, 2).join(' ');
+}
+
 // =========================================
 // LOGO — thumbnail picker (4 options)
 // =========================================
@@ -249,6 +258,61 @@ const LANG = {
 
 function getCompanyStorageKey(id) {
     return 'invoice_co_' + id;
+}
+
+function getInvoiceBackupData() {
+    const data = {};
+
+    Object.keys(localStorage).forEach(key => {
+        if (isAllowedInvoiceStorageKey(key)) {
+            data[key] = localStorage.getItem(key);
+        }
+    });
+
+    return data;
+}
+
+function clearInvoiceAppStorage() {
+    const keysToRemove = [];
+
+    Object.keys(localStorage).forEach(key => {
+        if (isAllowedInvoiceStorageKey(key)) {
+            keysToRemove.push(key);
+        }
+    });
+
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
+function isAllowedInvoiceStorageKey(key) {
+    return (
+        key === 'invoice_global_v2' ||
+        key === 'invoice_show_qr' ||
+        key === 'db_lang' ||
+        key.startsWith('invoice_co_')
+    );
+}
+
+function isValidInvoiceBackupFile(backup) {
+    if (!backup || typeof backup !== 'object') return false;
+
+    if (backup.type !== 'invoice_app_backup') return false;
+
+    if (backup.version !== 1) return false;
+
+    if (!backup.data || typeof backup.data !== 'object' || Array.isArray(backup.data)) {
+        return false;
+    }
+
+    const keys = Object.keys(backup.data);
+    for (const key of keys) {
+        if (typeof key !== 'string') return false;
+        if (typeof backup.data[key] !== 'string' && backup.data[key] !== null) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function loadCompanyData(id) {
@@ -777,20 +841,12 @@ function preparePrintLayout() {
         }
     }
 
-    // VAT note-ის დამალვა თუ ცარიელია
-    const vatTextInput = document.getElementById('vat_text');
-    if (vatTextInput && (!vatTextInput.value || vatTextInput.value.trim() === '')) {
-        styleElementOnlyForPrint(vatTextInput, {
-            display: 'none'
-        });
-    }
-
     // COMPANY block: hide empty lines only on print
-    hideFieldRowIfEmptyForPrint('my_reg_no');
-    hideFieldRowIfEmptyForPrint('my_addr');
-    hideFieldRowIfEmptyForPrint('my_phone');
-    hideFieldRowIfEmptyForPrint('my_email');
-    hideFieldRowIfEmptyForPrint('my_website');
+    hideFieldRowIfEmptyForPrint('my_reg_no_span');
+    hideFieldRowIfEmptyForPrint('my_addr_span');
+    hideFieldRowIfEmptyForPrint('my_phone_span');
+    hideFieldRowIfEmptyForPrint('my_email_span');
+    hideFieldRowIfEmptyForPrint('my_website_span');
 
     // BANK block: hide empty rows only on print
     hideFieldRowIfEmptyForPrint('bank_recip_span');
@@ -888,19 +944,26 @@ window.onload = async function () {
     // ---- PRINT: PDF-only cleanup + compact VAT ----
     
     window.addEventListener('beforeprint', function () {
-        if (isQrEnabled()) {
-            document.body.classList.remove('hide-qr');
-        } else {
-            document.body.classList.add('hide-qr');
-        }
+    qrStateBeforePrint = isQrEnabled();
 
-        preparePrintLayout();
-    });
-
-    window.addEventListener('afterprint', function () {
+    if (qrStateBeforePrint) {
         document.body.classList.remove('hide-qr');
-        restorePrintLayout();
-    });
+    } else {
+        document.body.classList.add('hide-qr');
+    }
+
+    preparePrintLayout();
+});
+
+window.addEventListener('afterprint', function () {
+    if (qrStateBeforePrint) {
+        document.body.classList.remove('hide-qr');
+    } else {
+        document.body.classList.add('hide-qr');
+    }
+
+    restorePrintLayout();
+});
 };
 
 // =========================================
@@ -942,6 +1005,21 @@ async function renderInvoiceForm() {
     document.getElementById('my_phone').value = co.phone || '';
     document.getElementById('my_email').value = co.email || '';
     document.getElementById('my_website').value = co.website || '';
+    
+    // Sync company print spans so empty placeholders never appear on PDF
+const companyPrintMap = {
+    my_comp_name_span: co.name || '',
+    my_reg_no_span: co.reg || '',
+    my_addr_span: co.addr || '',
+    my_phone_span: co.phone || '',
+    my_email_span: co.email || '',
+    my_website_span: co.website || ''
+};
+
+Object.entries(companyPrintMap).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || '';
+});
 
     const bankRecipValue = ci.bankRecip !== undefined ? ci.bankRecip : (co.bankRecip || '');
     const bankNameValue = ci.bankName !== undefined ? ci.bankName : (co.bankName || '');
@@ -2072,7 +2150,9 @@ function refreshNavCompanyPicker() {
     (APP_DATA.companies || []).forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = c.name || 'Untitled';
+        opt.textContent = (c.id === APP_DATA.currentCompanyId)
+    ? getNavCompanyShortName(c.name)
+    : (c.name || 'Untitled');
         if (c.id === APP_DATA.currentCompanyId) opt.selected = true;
         sel.appendChild(opt);
     });
@@ -2141,13 +2221,20 @@ function requestBankEdit(inputEl) {
 function generateInvoiceNumber() {
     const year = new Date().getFullYear();
 
-    const lastNums = (COMPANY_DATA.invoices || [])
-        .map(i => i.num)
-        .filter(n => n && n.startsWith(year + '-'))
-        .map(n => parseInt(n.split('-')[1]) || 0);
+    const validNums = (COMPANY_DATA.invoices || [])
+        .map(i => String(i.num || '').trim())
+        .filter(n => n.startsWith(year + '-'))
+        .map(n => {
+            const parts = n.split('-');
+            if (parts.length !== 2) return NaN;
 
-    const next = lastNums.length ? Math.max(...lastNums) + 1 : 1;
-    return `${year}-${next.toString().padStart(3, '0')}`;
+            const num = parseInt(parts[1], 10);
+            return Number.isFinite(num) && num > 0 ? num : NaN;
+        })
+        .filter(num => Number.isFinite(num));
+
+    const next = validNums.length ? Math.max(...validNums) + 1 : 1;
+    return `${year}-${String(next).padStart(3, '0')}`;
 }
 
 function getCurrentDate() {
@@ -2787,7 +2874,7 @@ function exportFullBackup() {
             type: "invoice_app_backup",
             version: 1,
             exportedAt: new Date().toISOString(),
-            data: localStorage
+            data: getInvoiceBackupData()
         };
 
         const json = JSON.stringify(backup, null, 2);
@@ -2837,35 +2924,37 @@ function handleImportFile(event) {
             const text = e.target.result;
             const backup = JSON.parse(text);
 
-            if (!backup || backup.type !== 'invoice_app_backup' || !backup.data) {
-                showToast('❌ Invalid backup file');
-                return;
-            }
+            if (!isValidInvoiceBackupFile(backup)) {
+    showToast('❌ Invalid or unsupported backup file');
+    return;
+}
 
             confirmAction(
-                'Import Backup',
-                'Import will replace all current app data. Continue?',
-                () => {
-                    try {
-                        // Clear current storage
-                        localStorage.clear();
+    'Import Backup',
+    'Import will replace current Invoice app data only. Continue?',
+    () => {
+        try {
+            // Clear only this app's storage
+            clearInvoiceAppStorage();
 
-                        // Restore all keys
-                        Object.keys(backup.data).forEach(key => {
-                            localStorage.setItem(key, backup.data[key]);
-                        });
+            // Restore only backup keys
+            Object.keys(backup.data).forEach(key => {
+    if (isAllowedInvoiceStorageKey(key)) {
+        localStorage.setItem(key, backup.data[key]);
+    }
+});
 
-                        showToast('✅ Backup imported');
+            showToast('✅ Backup imported');
 
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 500);
-                    } catch (err) {
-                        console.error(err);
-                        showToast('❌ Import failed');
-                    }
-                }
-            );
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } catch (err) {
+            console.error(err);
+            showToast('❌ Import failed');
+        }
+    }
+);
         } catch (err) {
             console.error(err);
             showToast('❌ Invalid JSON file');
