@@ -882,8 +882,18 @@ const blob = pdf.output('blob');
 
 // iOS-ზე აღარ ვიყენებთ window.open('_blank')
 if (isIOS()) {
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+            files: [file],
+            title: fileName
+        });
+        return;
+    }
+
     const url = URL.createObjectURL(blob);
-    window.location.href = url;
+    window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
 }
