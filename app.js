@@ -476,97 +476,6 @@ function isIOSSafari() {
     return isIos && isSafari;
 }
 
-function shouldUsePdfExport() {
-    return isIOS();
-}
-
-function getPrintButtonLabel() {
-    return shouldUsePdfExport() ? '💾 Save PDF' : '🖨️ Print';
-}
-
-function updatePrintButtonsForPlatform() {
-    const mainPrintBtn = document.getElementById('print-btn');
-    if (mainPrintBtn) {
-        mainPrintBtn.innerHTML = getPrintButtonLabel();
-    }
-
-    document.querySelectorAll('.hist-btn-print').forEach(btn => {
-        btn.innerHTML = getPrintButtonLabel();
-    });
-}
-
-async function exportCurrentInvoiceAsPdf() {
-    try {
-        document.body.style.overflow = 'hidden';
-        showToast('⏳ Generating PDF...');
-
-        const element = document.querySelector('.inv-card');
-        if (!element) {
-            showToast('❌ Invoice not found');
-            return;
-        }
-
-        const qrContainer = document.getElementById('invoice-qr-container');
-        await waitForQrRender(qrContainer, 2000);
-
-        document.body.classList.add('printing-invoice');
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const canvas = await html2canvas(element, {
-            scale: window.devicePixelRatio > 2 ? 2 : 1.5,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: -window.scrollY
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-
-        const pdfWidth = 210;
-        const pdfHeight = 297;
-        const margin = 8;
-
-        const imgWidth = pdfWidth - margin * 2;
-        const imgHeight = canvas.height * imgWidth / canvas.width;
-
-        let heightLeft = imgHeight;
-        let positionY = margin;
-
-        pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
-        heightLeft -= (pdfHeight - margin * 2);
-
-        while (heightLeft > 0) {
-            positionY = margin - (imgHeight - heightLeft);
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
-            heightLeft -= (pdfHeight - margin * 2);
-        }
-
-        const fileName = getPdfFileName(COMPANY_DATA.currentInvoice.num);
-        pdf.save(fileName);
-
-        showToast('✅ PDF saved');
-    } catch (err) {
-        console.error(err);
-        showToast('❌ PDF failed');
-    } finally {
-        document.body.style.overflow = '';
-        document.body.classList.remove('printing-invoice');
-    }
-}
-
-async function handleCurrentInvoicePrintAction() {
-    if (shouldUsePdfExport()) {
-        await exportCurrentInvoiceAsPdf();
-        return;
-    }
-
-    window.print();
-}
-
 function isInStandaloneMode() {
     return window.navigator.standalone === true ||
         window.matchMedia('(display-mode: standalone)').matches;
@@ -1002,7 +911,6 @@ window.onload = async function () {
     applyLang();
     updateQrToggleButton();
     updateDocumentTitleForPdf();
-    updatePrintButtonsForPlatform();
     initPWA();
 
     if (isQrEnabled()) {
@@ -1220,9 +1128,7 @@ if (qrContainer) {
         };
 
         await renderInvoicePaymentQR(qrContainer, qrCompany, invoiceData);
-    }
-
-    updatePrintButtonsForPlatform();
+}
 }
 
 function renderItemRows() {
@@ -1499,7 +1405,7 @@ const paymentBtnStyle = paymentStatus === 'paid'
     <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
     <button class="hist-btn ${paymentBtnClass}" style="${paymentBtnStyle}" onclick="toggleInvoicePaymentStatus(${realIdx})">${paymentLabel}</button>
     <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
-    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">${getPrintButtonLabel()}</button>
+    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
 </div>
             </div>
 
@@ -1590,7 +1496,7 @@ setTimeout(async () => {
     const qrContainer = document.getElementById('invoice-qr-container');
     await waitForQrRender(qrContainer, 2500);
 
-    setTimeout(async () => {
+    setTimeout(() => {
         if (!isQrEnabled()) {
             document.body.classList.add('hide-qr');
         } else {
@@ -1605,15 +1511,6 @@ setTimeout(async () => {
             refreshClientPicker();
             document.body.classList.remove('printing-invoice');
             showPage(previousPage.replace('page-', ''));
-        }
-
-        if (shouldUsePdfExport()) {
-            try {
-                await exportCurrentInvoiceAsPdf();
-            } finally {
-                onAfterPrint();
-            }
-            return;
         }
 
         window.addEventListener('afterprint', onAfterPrint);
