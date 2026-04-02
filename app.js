@@ -690,7 +690,7 @@ if (logoKey !== 'none') {
        // =========================
 // TOP CARDS
 // =========================
-const leftW =92;
+const leftW = 102;
 const gap = 4;
 const rightW = contentW - leftW - gap;
 
@@ -700,13 +700,15 @@ const clientLines = String(ci.client || '')
     .map(s => s.trim())
     .filter(Boolean);
 
-const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 14));
+// ტექსტის სიგანე იყოს ნორმალური, მაგრამ არ გადაწიოს მარჯვნივ
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 12));
 
 const clientLineHeight = 4.8;
-const clientTopOffset = 10.5;
+const clientTopOffset = 13.5;
 const minTopCardH = 34;
 
-const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
+// კარტის სიმაღლე არ გავზარდოთ ზედმეტად
+const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 2;
 const topCardH = Math.max(minTopCardH, neededLeftCardH);
 
 pdf.setFillColor(248, 250, 252);
@@ -719,16 +721,16 @@ pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
 pdf.setTextColor(30, 30, 30);
 pdf.setFont('helvetica', 'bold');
 pdf.setFontSize(8);
-pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 4);
+pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
 
-pdf.setFont('helvetica', 'normal');
+// Client text — ზუსტად იმავე მარცხენა ხაზიდან დაიწყოს
 pdf.setFontSize(10);
 
 let clientY2 = y + clientTopOffset;
 const clientTextX = margin + 4;
 
 clientTextLines.forEach((line, idx) => {
-    if (clientY2 > y + topCardH - 5) return;
+    if (clientY2 > y + topCardH - 4) return;
 
     pdf.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
     pdf.text(line, clientTextX, clientY2);
@@ -903,7 +905,7 @@ pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(8.2);
-pdf.text(termsLines, termsX + 4, y + 17.5, { lineHeightFactor: 1.45 });
+pdf.text(termsLines, termsX + 4, y + 17.5, { lineHeightFactor: 1.45 });pdf.text(termsLines, termsX + 4, y + 16.2, { lineHeightFactor: 1.45 });
 
         y += footerH + 8;
 
