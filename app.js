@@ -690,7 +690,7 @@ if (logoKey !== 'none') {
        // =========================
 // TOP CARDS
 // =========================
-const leftW = 102;
+const leftW =92;
 const gap = 4;
 const rightW = contentW - leftW - gap;
 
@@ -700,7 +700,7 @@ const clientLines = String(ci.client || '')
     .map(s => s.trim())
     .filter(Boolean);
 
-const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 10));
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
 
 const clientLineHeight = 4.8;
 const clientTopOffset = 10.5;
@@ -719,7 +719,7 @@ pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
 pdf.setTextColor(30, 30, 30);
 pdf.setFont('helvetica', 'bold');
 pdf.setFontSize(8);
-pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
+pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 4);
 
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(10);
@@ -730,7 +730,7 @@ clientTextLines.forEach((line, idx) => {
 
     if (idx === 0) {
         pdf.setFont('helvetica', 'bold');
-        pdf.text(line, margin + 6, clientY2);
+        pdf.text(line, margin + 4, clientY2);
         pdf.setFont('helvetica', 'normal');
     } else {
         pdf.text(line, margin + 6, clientY2);
@@ -859,13 +859,15 @@ y += topCardH + 6;
         ].filter(Boolean);
 
         const termsLines = splitLines(
-            String(L.termsText || '').replace(/\n/g, ' '),
-            footW - 12
-        );
+    String(L.termsText || '').replace(/\n/g, ' '),
+    footW - 12
+);
 
-        const bankCardH = Math.max(38, 15 + bankLines.length * 5.8);
-        const termsCardH = Math.max(36, 15 + termsLines.length * 5.2);
-        const footerH = Math.max(bankCardH, termsCardH);
+const termsLineHeight = 6.2;
+
+const bankCardH = Math.max(38, 15 + bankLines.length * 5.8);
+const termsCardH = Math.max(36, 15 + termsLines.length * termsLineHeight);
+const footerH = Math.max(bankCardH, termsCardH);
 
         pdf.setFillColor(248, 250, 252);
         pdf.setDrawColor(226, 232, 240);
@@ -904,7 +906,7 @@ pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(8.2);
-pdf.text(termsLines, termsX + 4, y + 19.5);
+pdf.text(termsLines, termsX + 4, y + 19.5, { lineHeightFactor: 1.45 });
 
         y += footerH + 8;
 
