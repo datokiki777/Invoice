@@ -608,7 +608,7 @@ async function generateIosPdf() {
        // =========================
 // TOP CARDS
 // =========================
-const leftW = 92;
+const leftW = 102;
 const gap = 4;
 const rightW = contentW - leftW - gap;
 
@@ -618,7 +618,7 @@ const clientLines = String(ci.client || '')
     .map(s => s.trim())
     .filter(Boolean);
 
-const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 14));
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 10));
 
 const clientLineHeight = 4.8;
 const clientTopOffset = 13.5;
