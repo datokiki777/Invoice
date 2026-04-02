@@ -700,7 +700,7 @@ const clientLines = String(ci.client || '')
     .map(s => s.trim())
     .filter(Boolean);
 
-const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 14));
 
 const clientLineHeight = 4.8;
 const clientTopOffset = 10.5;
@@ -725,16 +725,13 @@ pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(10);
 
 let clientY2 = y + clientTopOffset;
+const clientTextX = margin + 4;
+
 clientTextLines.forEach((line, idx) => {
     if (clientY2 > y + topCardH - 5) return;
 
-    if (idx === 0) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(line, margin + 4, clientY2);
-        pdf.setFont('helvetica', 'normal');
-    } else {
-        pdf.text(line, margin + 6, clientY2);
-    }
+    pdf.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+    pdf.text(line, clientTextX, clientY2);
 
     clientY2 += clientLineHeight;
 });
@@ -906,7 +903,7 @@ pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(8.2);
-pdf.text(termsLines, termsX + 4, y + 19.5, { lineHeightFactor: 1.45 });
+pdf.text(termsLines, termsX + 4, y + 17.5, { lineHeightFactor: 1.45 });
 
         y += footerH + 8;
 
