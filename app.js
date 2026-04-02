@@ -956,9 +956,8 @@ if (isIOS()) {
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-            files: [file],
-            title: fileName
-        });
+    files: [file]
+});
         return;
     }
 
