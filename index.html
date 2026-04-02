@@ -256,7 +256,7 @@
         <!-- QR CODE SECTION -->
         <div id="invoice-qr-container" class="qr-container" style="display: flex; justify-content: center; margin: 20px 0;"></div>
 
-        <div class="action-bar no-print invoice-action-bar">
+       <div class="action-bar no-print invoice-action-bar">
     <button class="btn btn-success invoice-action-btn" onclick="saveInvoiceToHistory()">💾 Save</button>
     <button class="btn btn-warning invoice-action-btn" onclick="newInvoice()">➕ New</button>
     <button id="print-btn" class="btn invoice-action-btn" onclick="handleCurrentInvoicePrintAction()">🖨️ Print</button>
@@ -651,6 +651,8 @@
  <input type="file" id="backup-file-input" accept=".json,application/json" style="display:none;" onchange="handleImportFile(event)">
  
  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+ 
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script src="app.js"></script>
 
