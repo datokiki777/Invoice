@@ -878,18 +878,19 @@ y += topCardH + 6;
         }
 
         const fileName = getPdfFileName(ci.num);
-        const blob = pdf.output('blob');
-        const file = new File([blob], fileName, { type: 'application/pdf' });
+const blob = pdf.output('blob');
 
-        // iOS-ზე ყოველთვის პირდაპირ გავხსნათ PDF
+// iOS-ზე აღარ ვიყენებთ window.open('_blank')
 if (isIOS()) {
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
 }
 
-// სხვა მოწყობილობებზე დარჩეს ძველი ლოგიკა
+// სხვა მოწყობილობებზე ძველი ლოგიკა
+const file = new File([blob], fileName, { type: 'application/pdf' });
+
 if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({
         files: [file],
