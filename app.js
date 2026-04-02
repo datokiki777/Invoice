@@ -575,20 +575,19 @@ async function generateIosPdf() {
         const logoY = y + 5;
         const logoSize = 12;
 
-        const logoWrap = document.getElementById('logo-wrap');
-        const logoSvg = logoWrap ? logoWrap.querySelector('svg') : null;
+        const logoKey = company.logoKey || 'shared1';
+const logoMarkup = LOGO_SVG[logoKey] || LOGO_SVG.shared1;
 
-        if (logoSvg) {
-            try {
-                const svgText = new XMLSerializer().serializeToString(logoSvg);
-                const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
-                pdf.addImage(svgBase64, 'SVG', logoX, logoY, logoSize, logoSize);
-            } catch (e) {
-                // fallback simple white box if svg fails
-                pdf.setFillColor(255, 255, 255);
-                pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
-            }
-        }
+if (logoKey !== 'none' && logoMarkup) {
+    try {
+        const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(logoMarkup)));
+        pdf.addImage(svgBase64, 'SVG', logoX, logoY, logoSize, logoSize);
+    } catch (e) {
+        pdf.setDrawColor(255, 255, 255);
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'FD');
+    }
+}
 
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
@@ -618,7 +617,7 @@ async function generateIosPdf() {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
 
-        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 8));
+        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 16));
         const clientCardH = Math.max(30, 10 + clientTextLines.length * 5.1);
 
         const invCardH = clientCardH;
@@ -635,7 +634,7 @@ async function generateIosPdf() {
 
         let clientY2 = y + 12;
         if (clientTextLines.length) {
-            pdf.text(clientTextLines[0], margin + 4, clientY2);
+            pdf.text(clientTextLines[0], margin + 6, clientY2);
             clientY2 += 5.5;
         }
 
@@ -643,7 +642,7 @@ async function generateIosPdf() {
         pdf.setFontSize(10);
 
         clientTextLines.slice(1).forEach(line => {
-            pdf.text(line, margin + 4, clientY2);
+            pdf.text(line, margin + 6, clientY2);
             clientY2 += 5.1;
         });
 
@@ -721,9 +720,9 @@ async function generateIosPdf() {
         y += 6;
 
         // პატარა ყვითელი total bar
-        const totalBoxX = margin + 6;
-        const totalBoxW = contentW - 12;
-        const totalBoxH = 9;
+        const totalBoxX = summaryLeftX - 2;
+        const totalBoxW = summaryRightX - totalBoxX;
+        const totalBoxH = 8;
 
         pdf.setFillColor(244, 184, 0);
         pdf.roundedRect(totalBoxX, y, totalBoxW, totalBoxH, 3, 3, 'F');
@@ -743,8 +742,8 @@ async function generateIosPdf() {
         const termsText = String(L.termsText || '').replace(/\n/g, ' ');
         const termsLines = splitLines(termsText, footW - 8);
 
-        const bankCardH = Math.max(30, 11 + bankLines.length * 5.1);
-        const termsCardH = Math.max(30, 11 + termsLines.length * 4.8);
+        const bankCardH = Math.max(34, 13 + bankLines.length * 5.4);
+        const termsCardH = Math.max(34, 13 + termsLines.length * 4.8);
         const footerH = Math.max(bankCardH, termsCardH);
 
         drawRoundedCard(margin, y, footW, footerH, [248, 250, 252], [222, 226, 230]);
@@ -764,7 +763,7 @@ async function generateIosPdf() {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
 
-        let bankY = y + 15;
+        let bankY = y + 17;
         bankLines.forEach(line => {
             pdf.text(line, margin + 4, bankY);
             bankY += 5.2;
