@@ -476,6 +476,25 @@ function isIOSSafari() {
     return isIos && isSafari;
 }
 
+function getPrintButtonLabel() {
+    return isIOS() ? '📄 Open PDF' : '🖨️ Print';
+}
+
+function updatePrintButtonsForPlatform() {
+    const mainPrintBtn = document.getElementById('print-btn');
+    if (mainPrintBtn) {
+        mainPrintBtn.innerHTML = getPrintButtonLabel();
+    }
+
+    document.querySelectorAll('.hist-btn-print').forEach(btn => {
+        btn.innerHTML = getPrintButtonLabel();
+    });
+}
+
+function handleCurrentInvoicePrintAction() {
+    window.print();
+}
+
 function isInStandaloneMode() {
     return window.navigator.standalone === true ||
         window.matchMedia('(display-mode: standalone)').matches;
@@ -911,6 +930,7 @@ window.onload = async function () {
     applyLang();
     updateQrToggleButton();
     updateDocumentTitleForPdf();
+    updatePrintButtonsForPlatform();
     initPWA();
 
     if (isQrEnabled()) {
@@ -1128,7 +1148,9 @@ if (qrContainer) {
         };
 
         await renderInvoicePaymentQR(qrContainer, qrCompany, invoiceData);
-}
+    }
+
+    updatePrintButtonsForPlatform();
 }
 
 function renderItemRows() {
@@ -1405,7 +1427,7 @@ const paymentBtnStyle = paymentStatus === 'paid'
     <button class="hist-btn hist-btn-load" onclick="loadInvoiceFromHistory(${realIdx})">📂 Open</button>
     <button class="hist-btn ${paymentBtnClass}" style="${paymentBtnStyle}" onclick="toggleInvoicePaymentStatus(${realIdx})">${paymentLabel}</button>
     <button class="hist-btn hist-btn-del" onclick="deleteInvoice(${realIdx})">🗑️ Delete</button>
-    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">🖨️ Print</button>
+    <button class="hist-btn hist-btn-print" onclick="printInvoiceFromHistory(${realIdx})">${getPrintButtonLabel()}</button>
 </div>
             </div>
 
