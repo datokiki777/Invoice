@@ -887,7 +887,6 @@ y += topCardH + 6;
         const fileName = getPdfFileName(ci.num);
 const blob = pdf.output('blob');
 
-// iOS-ზე აღარ ვიყენებთ window.open('_blank')
 if (isIOS()) {
     const file = new File([blob], fileName, { type: 'application/pdf' });
 
@@ -896,15 +895,15 @@ if (isIOS()) {
             files: [file],
             title: fileName
         });
-    } else {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showToast('✅ PDF ready');
+        return;
     }
+
+    showToast('❌ PDF share is not available on this iPhone/iPad');
     return;
 }
 
-// სხვა მოწყობილობებზე ძველი ლოგიკა
+// სხვა მოწყობილობებზე
 const file = new File([blob], fileName, { type: 'application/pdf' });
 
 if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -917,6 +916,8 @@ if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] 
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+
+showToast('✅ PDF ready');
 
         showToast('✅ PDF ready');
     } catch (err) {
