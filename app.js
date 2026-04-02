@@ -905,7 +905,12 @@ pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(8.2);
-pdf.text(termsLines, termsX + 4, y + 17.5, { lineHeightFactor: 1.45 });pdf.text(termsLines, termsX + 4, y + 16.2, { lineHeightFactor: 1.45 });
+
+let termsY = y + 16.2;
+termsLines.forEach(line => {
+    pdf.text(String(line), termsX + 4, termsY);
+    termsY += 4.8;
+});
 
         y += footerH + 8;
 
