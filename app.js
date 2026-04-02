@@ -128,7 +128,13 @@ function createEmptyCompanyData() {
             vatRate: 0,
             vatText: '',
             paymentStatus: 'unpaid',
-            items: [{ desc: '', qty: 1, price: 0 }]
+            items: [{ desc: '', qty: 1, price: 0 }],
+
+            // ✅ bank fields
+            bankRecip: '',
+            bankName: '',
+            bankIban: '',
+            bankBic: ''
         }
     };
 }
@@ -362,7 +368,11 @@ function loadCompanyData(id) {
             vatRate: 0,
             vatText: '',
             paymentStatus: 'unpaid',
-            items: [{ desc: '', qty: 1, price: 0 }]
+            items: [{ desc: '', qty: 1, price: 0 }],
+            bankRecip: '',
+            bankName: '',
+            bankIban: '',
+            bankBic: ''
         };
     }
     syncSavedInvoiceProtection();
@@ -445,6 +455,15 @@ function loadAppData() {
 function saveAppData() {
     saveGlobalData();
     saveCompanyData();
+}
+
+let saveAppDataTimer = null;
+
+function saveAppDataDebounced() {
+    clearTimeout(saveAppDataTimer);
+    saveAppDataTimer = setTimeout(() => {
+        saveAppData();
+    }, 300);
 }
 
 // =========================================
@@ -626,18 +645,6 @@ const minTopCardH = 34;
 
 const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
 const topCardH = Math.max(minTopCardH, neededLeftCardH);
-
-pdf.setFillColor(248, 250, 252);
-pdf.setDrawColor(226, 232, 240);
-
-pdf.roundedRect(margin, y, leftW, topCardH, 3, 3, 'FD');
-pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
-
-// Left card title
-pdf.setTextColor(30, 30, 30);
-pdf.setFont('helvetica', 'bold');
-pdf.setFontSize(8);
-pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
 
 pdf.setFillColor(248, 250, 252);
 pdf.setDrawColor(226, 232, 240);
@@ -889,12 +896,11 @@ if (isIOS()) {
             files: [file],
             title: fileName
         });
-        return;
+    } else {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
-
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
 }
 
@@ -1550,31 +1556,36 @@ Object.entries(companyPrintMap).forEach(([id, val]) => {
     updateClientPrintBlock();
  
     // QR CODE RENDER
-const qrContainer = document.getElementById('invoice-qr-container');
-if (qrContainer) {
-    qrContainer.style.display = 'flex';
-
-        const company = getCurrentCompany();
-
-        const invoiceData = {
-            num: COMPANY_DATA.currentInvoice.num || '',
-            total: parseFloat(document.getElementById('grand_total')?.innerText) || 0,
-            description: (COMPANY_DATA.currentInvoice.items || [])
-                .map(i => (i.desc || '').trim())
-                .filter(Boolean)
-                .join(', ')
-        };
-
-        const qrCompany = {
-            companyName: bankRecipValue || company?.name || '',
-            iban: bankIbanValue || '',
-            bic: bankBicValue || ''
-        };
-
-        await renderInvoicePaymentQR(qrContainer, qrCompany, invoiceData);
-    }
+await refreshInvoiceQr();
 
     updatePrintButtonsForPlatform();
+}
+
+async function refreshInvoiceQr() {
+    const qrContainer = document.getElementById('invoice-qr-container');
+    if (!qrContainer) return;
+
+    qrContainer.style.display = 'flex';
+
+    const company = getCurrentCompany();
+    const ci = COMPANY_DATA.currentInvoice || {};
+
+    const invoiceData = {
+        num: ci.num || '',
+        total: parseFloat(document.getElementById('grand_total')?.innerText) || 0,
+        description: (ci.items || [])
+            .map(i => (i.desc || '').trim())
+            .filter(Boolean)
+            .join(', ')
+    };
+
+    const qrCompany = {
+        companyName: (ci.bankRecip || company?.bankRecip || company?.name || ''),
+        iban: (ci.bankIban || company?.bankIban || ''),
+        bic: (ci.bankBic || company?.bankBic || '')
+    };
+
+    await renderInvoicePaymentQR(qrContainer, qrCompany, invoiceData);
 }
 
 function renderItemRows() {
@@ -1711,7 +1722,7 @@ function calculateAll() {
     document.getElementById('vat_amount').innerText = vat.toFixed(2);
     document.getElementById('grand_total').innerText = total.toFixed(2);
 
-    saveAppData();
+    saveAppDataDebounced();
 }
 
 function performSaveAllData() {
@@ -1901,6 +1912,7 @@ async function loadInvoiceFromHistory(index) {
 }
 
     syncSavedInvoiceProtection();
+    resetBankEditConfirmation();
     saveAppData();
     await renderInvoiceForm();
     updateDocumentTitleForPdf();
@@ -2043,10 +2055,15 @@ function newInvoice() {
             vatRate: 0,
             vatText: '',
             paymentStatus: 'unpaid',
-            items: [{ desc: '', qty: 1, price: 0 }]
+            items: [{ desc: '', qty: 1, price: 0 }],
+            bankRecip: '',
+            bankName: '',
+            bankIban: '',
+            bankBic: ''
         };
 
         resetSavedInvoiceProtection();
+        resetBankEditConfirmation();
         saveAppData();
         renderInvoiceForm();
         updateDocumentTitleForPdf();
@@ -2562,7 +2579,7 @@ async function switchCompany(id) {
     const company = APP_DATA.companies.find(c => c.id === id);
     if (!company) return;
 
-    bankEditConfirmed = false;
+    resetBankEditConfirmation();
 
     // Save current active company data before switch
     
@@ -2650,6 +2667,10 @@ function getLogoMarkup(logoKey) {
 // BANK DETAILS EDIT PROTECTION
 // =========================================
 let bankEditConfirmed = false;
+
+function resetBankEditConfirmation() {
+    bankEditConfirmed = false;
+}
 
 function requestBankEdit(inputEl) {
     if (bankEditConfirmed) return; // already confirmed this session
@@ -3526,7 +3547,7 @@ function getInvoiceQrPayload(company, invoice) {
 
 function generateSEPAQRCode(text, size = 180) {
     return new Promise((resolve, reject) => {
-        if (typeof QRCode === 'undefined') {
+        if (typeof window.QRCode === 'undefined') {
             reject(new Error('QRCode library not loaded'));
             return;
         }
@@ -3691,7 +3712,7 @@ async function renderInvoicePaymentQR(targetEl, company, invoice) {
     
     targetEl.innerHTML = '';
     
-    if (typeof QRCode === 'undefined') {
+    if (typeof window.QRCode === 'undefined') {
         targetEl.appendChild(createErrorBox(
             'QR library not loaded. Please include qrcode.js'
         ));
