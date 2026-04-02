@@ -919,7 +919,6 @@ if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] 
 
 showToast('✅ PDF ready');
 
-        showToast('✅ PDF ready');
     } catch (err) {
     console.error(err);
     showToast('❌ PDF failed: ' + (err?.message || err));
