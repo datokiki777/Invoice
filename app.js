@@ -565,33 +565,96 @@ async function generateIosPdf() {
         pdf.setFillColor(13, 61, 122);
         pdf.roundedRect(margin, y, contentW, headerH, 4, 4, 'F');
 
-        // Manual logo so it always appears
         const logoX = margin + 5;
-        const logoY = y + 4;
-        const logoSize = 12;
+const logoY = y + 4;
+const logoSize = 12;
 
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
+const logoKey = company.logoKey || 'shared1';
 
-        pdf.setFillColor(13, 61, 122);
-        pdf.roundedRect(logoX + 1.2, logoY + 1.2, logoSize - 2.4, logoSize - 2.4, 1.6, 1.6, 'F');
+if (logoKey !== 'none') {
+    const logoMap = {
+        shared1: function () {
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
 
-        pdf.setFillColor(255, 255, 255);
-        pdf.triangle(
-            logoX + 2.5, logoY + 9.5,
-            logoX + 5.2, logoY + 4.5,
-            logoX + 7.0, logoY + 7.2,
-            'F'
-        );
-        pdf.triangle(
-            logoX + 5.8, logoY + 7.8,
-            logoX + 7.6, logoY + 3.8,
-            logoX + 9.3, logoY + 9.5,
-            'F'
-        );
+            pdf.setFillColor(13, 61, 122);
+            pdf.roundedRect(logoX + 1.2, logoY + 1.2, logoSize - 2.4, logoSize - 2.4, 1.6, 1.6, 'F');
 
-        pdf.setFillColor(244, 179, 0);
-        pdf.circle(logoX + 8.7, logoY + 3.2, 0.9, 'F');
+            pdf.setFillColor(255, 255, 255);
+            pdf.triangle(
+                logoX + 2.5, logoY + 9.5,
+                logoX + 5.2, logoY + 4.5,
+                logoX + 7.0, logoY + 7.2,
+                'F'
+            );
+            pdf.triangle(
+                logoX + 5.8, logoY + 7.8,
+                logoX + 7.6, logoY + 3.8,
+                logoX + 9.3, logoY + 9.5,
+                'F'
+            );
+
+            pdf.setFillColor(244, 179, 0);
+            pdf.circle(logoX + 8.7, logoY + 3.2, 0.9, 'F');
+        },
+
+        shared2: function () {
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
+
+            pdf.setFillColor(13, 61, 122);
+            pdf.roundedRect(logoX + 1.2, logoY + 1.2, logoSize - 2.4, logoSize - 2.4, 1.6, 1.6, 'F');
+
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX + 2.8, logoY + 3.0, 6.0, 1.0, 0.4, 0.4, 'F');
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX + 2.8, logoY + 5.3, 4.8, 1.0, 0.4, 0.4, 'F');
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX + 2.8, logoY + 7.6, 5.4, 1.0, 0.4, 0.4, 'F');
+        },
+
+        shared3: function () {
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
+
+            pdf.setFillColor(13, 61, 122);
+            pdf.roundedRect(logoX + 1.2, logoY + 1.2, logoSize - 2.4, logoSize - 2.4, 1.6, 1.6, 'F');
+
+            pdf.setFillColor(255, 255, 255);
+            pdf.triangle(
+                logoX + 2.4, logoY + 5.0,
+                logoX + 6.0, logoY + 2.7,
+                logoX + 9.6, logoY + 5.0,
+                'F'
+            );
+
+            pdf.setFillColor(210, 225, 245);
+            pdf.triangle(
+                logoX + 2.4, logoY + 7.0,
+                logoX + 6.0, logoY + 9.3,
+                logoX + 9.6, logoY + 7.0,
+                'F'
+            );
+
+            pdf.setFillColor(255, 255, 255);
+            pdf.triangle(
+                logoX + 2.4, logoY + 8.9,
+                logoX + 6.0, logoY + 11.2,
+                logoX + 9.6, logoY + 8.9,
+                'F'
+            );
+
+            pdf.setFillColor(13, 61, 122);
+            pdf.circle(logoX + 6.0, logoY + 7.0, 0.7, 'F');
+        }
+    };
+
+    if (logoMap[logoKey]) {
+        logoMap[logoKey]();
+    } else {
+        logoMap.shared1();
+    }
+}
 
         // Company name
         pdf.setTextColor(255, 255, 255);
@@ -899,8 +962,9 @@ if (isIOS()) {
         return;
     }
 
+    // fallback — გახსნის PDF-ს პირდაპირ იმავე ფანჯარაში
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
 }
