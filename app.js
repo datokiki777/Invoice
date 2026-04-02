@@ -605,46 +605,46 @@ async function generateIosPdf() {
 
         y += headerH + 6;
 
-        // =========================
-        // TOP CARDS
-        // =========================
-        const leftW = 92;
-        const gap = 4;
-        const rightW = contentW - leftW - gap;
+       // =========================
+// TOP CARDS
+// =========================
+const leftW = 92;
+const gap = 4;
+const rightW = contentW - leftW - gap;
 
-        pdf.setFillColor(248, 250, 252);
-        pdf.setDrawColor(226, 232, 240);
+// Client lines
+const clientLines = String(ci.client || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
 
-        pdf.roundedRect(margin, y, leftW, topCardH, 3, 3, 'FD');
-        pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
 
-        // Left card title
-        pdf.setTextColor(30, 30, 30);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
+const clientLineHeight = 4.8;
+const clientTopOffset = 13.5;
+const minTopCardH = 34;
 
-        // Client lines
-        const clientLines = String(ci.client || '')
-            .split('\n')
-            .map(s => s.trim())
-            .filter(Boolean);
+const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
+const topCardH = Math.max(minTopCardH, neededLeftCardH);
 
-        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
-        
-        const clientLineHeight = 4.8;
-        const clientTopOffset = 13.5;
-        const minTopCardH = 34;
+pdf.setFillColor(248, 250, 252);
+pdf.setDrawColor(226, 232, 240);
 
-        const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
-        const topCardH = Math.max(minTopCardH, neededLeftCardH);
+pdf.roundedRect(margin, y, leftW, topCardH, 3, 3, 'FD');
+pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
 
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
+// Left card title
+pdf.setTextColor(30, 30, 30);
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(8);
+pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
 
-        let clientY2 = y + clientTopOffset;
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(10);
+
+let clientY2 = y + clientTopOffset;
 clientTextLines.forEach((line, idx) => {
-        if (clientY2 > y + topCardH - 5) return;
+    if (clientY2 > y + topCardH - 5) return;
 
     if (idx === 0) {
         pdf.setFont('helvetica', 'bold');
@@ -657,24 +657,24 @@ clientTextLines.forEach((line, idx) => {
     clientY2 += clientLineHeight;
 });
 
-        // Right card title
-        const rightX = margin + leftW + gap;
+// Right card title
+const rightX = margin + leftW + gap;
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.text(String(L.invoiceDetails).toUpperCase(), rightX + 4, y + 6);
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(8);
+pdf.text(String(L.invoiceDetails).toUpperCase(), rightX + 4, y + 6);
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(7.5);
-        pdf.text(String(L.invoiceNum).toUpperCase(), rightX + 4, y + 14);
-        pdf.text(String(L.date).toUpperCase(), rightX + 4, y + 24);
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(7.5);
+pdf.text(String(L.invoiceNum).toUpperCase(), rightX + 4, y + 14);
+pdf.text(String(L.date).toUpperCase(), rightX + 4, y + 24);
 
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9.5);
-        pdf.text(String(ci.num || ''), pageW - margin - 4, y + 14, { align: 'right' });
-        pdf.text(String(ci.date || ''), pageW - margin - 4, y + 24, { align: 'right' });
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(9.5);
+pdf.text(String(ci.num || ''), pageW - margin - 4, y + 14, { align: 'right' });
+pdf.text(String(ci.date || ''), pageW - margin - 4, y + 24, { align: 'right' });
 
-        y += topCardH + 6;
+y += topCardH + 6;
 
         // =========================
         // ITEMS TABLE
