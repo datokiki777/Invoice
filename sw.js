@@ -1,5 +1,5 @@
 // SW VERSION 4.3
-const CACHE_NAME = 'invoice-pwa-v5.0';
+const CACHE_NAME = 'invoice-pwa-v5.1';
 
 const APP_SHELL = [
   './',
