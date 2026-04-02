@@ -513,7 +513,7 @@ async function generateIosPdf() {
 
         const pageW = 210;
         const pageH = 297;
-        const margin = 12;
+        const margin = 10;
         const contentW = pageW - margin * 2;
 
         const company = getCurrentCompany() || {};
@@ -532,24 +532,18 @@ async function generateIosPdf() {
 
         const L = LANG[currentLang] || LANG.en;
 
-        let y = 14;
+        let y = 12;
 
-        // Header background
-        pdf.setFillColor(13, 61, 122);
-        pdf.roundedRect(margin, y, contentW, 26, 3, 3, 'F');
+        // ---------- HELPERS ----------
+        const drawRoundedCard = (x, y, w, h, fillRgb = [248, 250, 252], borderRgb = [225, 230, 235]) => {
+            pdf.setFillColor(...fillRgb);
+            pdf.setDrawColor(...borderRgb);
+            pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
+        };
 
-        // Title
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(18);
-        pdf.text(L.invoiceWord, pageW - margin - 6, y + 10, { align: 'right' });
-
-        // Company block
-        pdf.setFontSize(12);
-        pdf.text(String(company.name || ''), margin + 8, y + 8);
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
+        const splitLines = (text, width) => {
+            return pdf.splitTextToSize(String(text || '').trim(), width).filter(Boolean);
+        };
 
         const companyLines = [
             company.reg || '',
@@ -557,59 +551,118 @@ async function generateIosPdf() {
             company.phone || '',
             company.email || '',
             company.website || ''
-        ].filter(Boolean);
-
-        let cy = y + 13;
-        companyLines.forEach(line => {
-            pdf.text(String(line), margin + 8, cy);
-            cy += 4.2;
-        });
-
-        y += 34;
-
-        // Left / right cards
-        const leftW = 86;
-        const rightW = contentW - leftW - 6;
-
-        pdf.setDrawColor(225, 230, 235);
-        pdf.setFillColor(255, 255, 255);
-
-        pdf.roundedRect(margin, y, leftW, 34, 3, 3, 'S');
-        pdf.roundedRect(margin + leftW + 6, y, rightW, 34, 3, 3, 'S');
-
-        pdf.setTextColor(40, 40, 40);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
-        pdf.text(String(L.invoiceDetails).toUpperCase(), margin + leftW + 10, y + 6);
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(11);
+        ].filter(v => String(v || '').trim());
 
         const clientLines = String(ci.client || '')
             .split('\n')
             .map(s => s.trim())
             .filter(Boolean);
 
-        let clientY = y + 12;
-        clientLines.forEach(line => {
-            pdf.text(line, margin + 4, clientY);
-            clientY += 5.2;
+        const bankLines = [
+            (ci.bankRecip || company.bankRecip) ? `${L.recipient}: ${ci.bankRecip || company.bankRecip}` : '',
+            (ci.bankName || company.bankName) ? `${L.bank}: ${ci.bankName || company.bankName}` : '',
+            (ci.bankIban || company.bankIban) ? `IBAN: ${ci.bankIban || company.bankIban}` : '',
+            (ci.bankBic || company.bankBic) ? `BIC: ${ci.bankBic || company.bankBic}` : ''
+        ].filter(Boolean);
+
+        // ---------- HEADER ----------
+        const headerH = 32; // უფრო მაღალი
+        pdf.setFillColor(13, 61, 122);
+        pdf.roundedRect(margin, y, contentW, headerH, 3, 3, 'F');
+
+        // LOGO
+        const logoX = margin + 4;
+        const logoY = y + 5;
+        const logoSize = 12;
+
+        const logoWrap = document.getElementById('logo-wrap');
+        const logoSvg = logoWrap ? logoWrap.querySelector('svg') : null;
+
+        if (logoSvg) {
+            try {
+                const svgText = new XMLSerializer().serializeToString(logoSvg);
+                const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
+                pdf.addImage(svgBase64, 'SVG', logoX, logoY, logoSize, logoSize);
+            } catch (e) {
+                // fallback simple white box if svg fails
+                pdf.setFillColor(255, 255, 255);
+                pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
+            }
+        }
+
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text(String(company.name || ''), margin + 20, y + 8);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7.5);
+
+        let companyY = y + 12.5;
+        companyLines.forEach(line => {
+            pdf.text(String(line), margin + 20, companyY);
+            companyY += 4.1;
         });
 
+        pdf.setFont('times', 'bold');
+        pdf.setFontSize(19);
+        pdf.text(L.invoiceWord, pageW - margin - 6, y + 10.5, { align: 'right' });
+
+        y += headerH + 6;
+
+        // ---------- CLIENT / INVOICE CARDS ----------
+        const leftW = 92;
+        const gap = 4;
+        const rightW = contentW - leftW - gap;
+
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.text(L.invoiceNum, margin + leftW + 10, y + 14);
-        pdf.text(L.date, margin + leftW + 10, y + 24);
+        pdf.setFontSize(8);
+
+        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 8));
+        const clientCardH = Math.max(30, 10 + clientTextLines.length * 5.1);
+
+        const invCardH = clientCardH;
+
+        drawRoundedCard(margin, y, leftW, clientCardH, [247, 249, 252], [222, 226, 230]);
+        drawRoundedCard(margin + leftW + gap, y, rightW, invCardH, [247, 249, 252], [222, 226, 230]);
+
+        pdf.setTextColor(35, 35, 35);
+        pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
+        pdf.text(String(L.invoiceDetails).toUpperCase(), margin + leftW + gap + 4, y + 6);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+
+        let clientY2 = y + 12;
+        if (clientTextLines.length) {
+            pdf.text(clientTextLines[0], margin + 4, clientY2);
+            clientY2 += 5.5;
+        }
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
-        pdf.text(String(ci.num || ''), pageW - margin - 4, y + 14, { align: 'right' });
-        pdf.text(String(ci.date || ''), pageW - margin - 4, y + 24, { align: 'right' });
 
-        y += 42;
+        clientTextLines.slice(1).forEach(line => {
+            pdf.text(line, margin + 4, clientY2);
+            clientY2 += 5.1;
+        });
 
-        // Table header
+        const rx = margin + leftW + gap + 4;
+        const rv = pageW - margin - 4;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8.5);
+        pdf.text(L.invoiceNum.toUpperCase(), rx, y + 12);
+        pdf.text(L.date.toUpperCase(), rx, y + 22);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(String(ci.num || ''), rv, y + 12, { align: 'right' });
+        pdf.text(String(ci.date || ''), rv, y + 22, { align: 'right' });
+
+        y += clientCardH + 6;
+
+        // ---------- TABLE HEADER ----------
         pdf.setFillColor(13, 61, 122);
         pdf.rect(margin, y, contentW, 8, 'F');
 
@@ -617,14 +670,19 @@ async function generateIosPdf() {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
 
+        const qtyX = margin + 126;
+        const priceX = margin + 154;
+        const amountX = pageW - margin - 3;
+
         pdf.text(L.description.toUpperCase(), margin + 3, y + 5.5);
-        pdf.text(L.qty.toUpperCase(), margin + 108, y + 5.5, { align: 'right' });
-        pdf.text(L.unitPrice.toUpperCase(), margin + 140, y + 5.5, { align: 'right' });
-        pdf.text(L.amount.toUpperCase(), pageW - margin - 3, y + 5.5, { align: 'right' });
+        pdf.text(L.qty.toUpperCase(), qtyX, y + 5.5, { align: 'right' });
+        pdf.text(L.unitPrice.toUpperCase(), priceX, y + 5.5, { align: 'right' });
+        pdf.text(L.amount.toUpperCase(), amountX, y + 5.5, { align: 'right' });
 
         y += 11;
 
-        pdf.setTextColor(30, 30, 30);
+        // ---------- ITEMS ----------
+        pdf.setTextColor(35, 35, 35);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
 
@@ -634,98 +692,115 @@ async function generateIosPdf() {
             const price = (parseFloat(item.price) || 0).toFixed(2);
             const amount = ((parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0)).toFixed(2);
 
-            const descLines = pdf.splitTextToSize(desc, 96);
-            const rowH = Math.max(7, descLines.length * 4.2);
+            const descLines = splitLines(desc, 108);
+            const rowH = Math.max(7, descLines.length * 4.3);
 
             pdf.text(descLines, margin + 3, y);
-            pdf.text(qty, margin + 108, y, { align: 'right' });
-            pdf.text(`€ ${price}`, margin + 140, y, { align: 'right' });
-            pdf.text(`€${amount}`, pageW - margin - 3, y, { align: 'right' });
+            pdf.text(qty, qtyX, y, { align: 'right' });
+            pdf.text(`€${price}`, priceX, y, { align: 'right' });
+            pdf.text(`€${amount}`, amountX, y, { align: 'right' });
 
             y += rowH;
         });
 
-        y += 4;
+        y += 3;
 
-        // Summary
+        // ---------- SUMMARY ----------
+        const summaryLeftX = margin + 98;
+        const summaryRightX = pageW - margin - 3;
+
+        pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
-        pdf.text(L.subtotal, margin + 92, y, { align: 'left' });
-        pdf.text(`€${subtotal.toFixed(2)}`, pageW - margin - 3, y, { align: 'right' });
+        pdf.text(L.subtotal, summaryLeftX, y, { align: 'left' });
+        pdf.text(`€${subtotal.toFixed(2)}`, summaryRightX, y, { align: 'right' });
         y += 7;
 
         const vatLabel = currentLang === 'de' ? `MwSt. (${vatRate}%)` : `VAT (${vatRate}%)`;
-        pdf.text(vatLabel, margin + 92, y, { align: 'left' });
-        pdf.text(`€${vatAmount.toFixed(2)}`, pageW - margin - 3, y, { align: 'right' });
-        y += 8;
+        pdf.text(vatLabel, summaryLeftX, y, { align: 'left' });
+        pdf.text(`€${vatAmount.toFixed(2)}`, summaryRightX, y, { align: 'right' });
+        y += 6;
 
-        pdf.setFillColor(244, 179, 0);
-        pdf.roundedRect(margin + 10, y, contentW - 20, 10, 3, 3, 'F');
+        // პატარა ყვითელი total bar
+        const totalBoxX = margin + 6;
+        const totalBoxW = contentW - 12;
+        const totalBoxH = 9;
+
+        pdf.setFillColor(244, 184, 0);
+        pdf.roundedRect(totalBoxX, y, totalBoxW, totalBoxH, 3, 3, 'F');
 
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
-        pdf.text(L.total, margin + 14, y + 6.7);
-        pdf.text(`€${total.toFixed(2)}`, pageW - margin - 14, y + 6.7, { align: 'right' });
+        pdf.setTextColor(35, 35, 35);
+        pdf.text(L.total, totalBoxX + 4, y + 6.1);
+        pdf.text(`€${total.toFixed(2)}`, totalBoxX + totalBoxW - 4, y + 6.1, { align: 'right' });
 
-        y += 16;
+        y += totalBoxH + 6;
 
-        // Footer cards
-        const footW = (contentW - 6) / 2;
+        // ---------- BANK / TERMS ----------
+        const footGap = 4;
+        const footW = (contentW - footGap) / 2;
 
-        pdf.setDrawColor(225, 230, 235);
-        pdf.roundedRect(margin, y, footW, 34, 3, 3, 'S');
-        pdf.roundedRect(margin + footW + 6, y, footW, 34, 3, 3, 'S');
+        const termsText = String(L.termsText || '').replace(/\n/g, ' ');
+        const termsLines = splitLines(termsText, footW - 8);
+
+        const bankCardH = Math.max(30, 11 + bankLines.length * 5.1);
+        const termsCardH = Math.max(30, 11 + termsLines.length * 4.8);
+        const footerH = Math.max(bankCardH, termsCardH);
+
+        drawRoundedCard(margin, y, footW, footerH, [248, 250, 252], [222, 226, 230]);
+        drawRoundedCard(margin + footW + footGap, y, footW, footerH, [248, 250, 252], [222, 226, 230]);
 
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(35, 35, 35);
+
         pdf.text(String(L.bankDetails).toUpperCase(), margin + 4, y + 6);
-        pdf.text(String(L.terms).toUpperCase(), margin + footW + 10, y + 6);
+        pdf.text(String(L.terms).toUpperCase(), margin + footW + footGap + 4, y + 6);
 
         pdf.setDrawColor(13, 61, 122);
         pdf.line(margin + 4, y + 9, margin + footW - 4, y + 9);
-        pdf.line(margin + footW + 10, y + 9, pageW - margin - 4, y + 9);
+        pdf.line(margin + footW + footGap + 4, y + 9, pageW - margin - 4, y + 9);
 
-        pdf.setTextColor(30, 30, 30);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
 
-        let by = y + 16;
-        const bankLines = [
-            `${L.recipient}: ${ci.bankRecip || company.bankRecip || ''}`,
-            `${L.bank}: ${ci.bankName || company.bankName || ''}`,
-            `IBAN: ${ci.bankIban || company.bankIban || ''}`,
-            `BIC: ${ci.bankBic || company.bankBic || ''}`
-        ].filter(line => !line.endsWith(': '));
-
+        let bankY = y + 15;
         bankLines.forEach(line => {
-            pdf.text(line, margin + 4, by);
-            by += 5.5;
+            pdf.text(line, margin + 4, bankY);
+            bankY += 5.2;
         });
 
-        const termsLines = pdf.splitTextToSize(
-            String(L.termsText || '').replace(/\n/g, ' '),
-            footW - 8
-        );
-        pdf.text(termsLines, margin + footW + 10, y + 16);
+        pdf.text(termsLines, margin + footW + footGap + 4, y + 15);
 
-        y += 42;
+        y += footerH + 8;
 
-        // QR
+        // ---------- QR ----------
         const qrImg = document.querySelector('#invoice-qr-container img');
         if (qrImg && qrImg.src) {
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(11);
+            pdf.setFontSize(10);
             pdf.text(currentLang === 'de' ? 'GiroCode' : 'QR Code', pageW / 2, y + 3, { align: 'center' });
 
-            pdf.addImage(qrImg.src, 'PNG', pageW / 2 - 20, y + 6, 40, 40);
+            pdf.setDrawColor(225, 230, 235);
+            pdf.setFillColor(255, 255, 255);
+            pdf.roundedRect(pageW / 2 - 22, y + 6, 44, 52, 3, 3, 'FD');
+
+            pdf.addImage(qrImg.src, 'PNG', pageW / 2 - 15, y + 12, 30, 30);
 
             pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(9);
-            pdf.text(`${total.toFixed(2)} EUR`, pageW / 2, y + 50, { align: 'center' });
+            pdf.setFontSize(8);
+            pdf.text(currentLang === 'de' ? 'Mit Ihrer Banking-App scannen' : 'Scan with your banking app', pageW / 2, y + 45, { align: 'center' });
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.text(`${total.toFixed(2)} EUR`, pageW / 2, y + 51, { align: 'center' });
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
             pdf.text(String(ci.num || ''), pageW / 2, y + 55, { align: 'center' });
         }
 
         const fileName = getPdfFileName(ci.num);
-
         const blob = pdf.output('blob');
         const file = new File([blob], fileName, { type: 'application/pdf' });
 
