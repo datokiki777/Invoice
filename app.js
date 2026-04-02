@@ -497,80 +497,63 @@ function updatePrintButtonsForPlatform() {
 
 async function exportCurrentInvoiceAsPdf() {
     try {
-    	document.body.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
         showToast('⏳ Generating PDF...');
 
         const element = document.querySelector('.inv-card');
-        const qrContainer = document.getElementById('invoice-qr-container');
-await waitForQrRender(qrContainer, 2000);
         if (!element) {
             showToast('❌ Invoice not found');
             return;
         }
 
-        // დროებით დავამატოთ print class (თუ გჭირდება)
+        const qrContainer = document.getElementById('invoice-qr-container');
+        await waitForQrRender(qrContainer, 2000);
+
         document.body.classList.add('printing-invoice');
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const canvas = await html2canvas(element, {
-    scale: window.devicePixelRatio > 2 ? 2 : 1.5,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    scrollX: 0,
-    scrollY: -window.scrollY
-});
+            scale: window.devicePixelRatio > 2 ? 2 : 1.5,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: -window.scrollY
+        });
 
         const imgData = canvas.toDataURL('image/png');
-
         const { jsPDF } = window.jspdf;
-
         const pdf = new jsPDF('p', 'mm', 'a4');
 
         const pdfWidth = 210;
-const pdfHeight = 297;
+        const pdfHeight = 297;
+        const margin = 8;
 
-const margin = 8; // ლამაზი margin
+        const imgWidth = pdfWidth - margin * 2;
+        const imgHeight = canvas.height * imgWidth / canvas.width;
 
-const imgWidth = pdfWidth - margin * 2;
-const imgHeight = canvas.height * imgWidth / canvas.width;
-
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
-
-        // თუ გრძელი ინვოისია → page split
         let heightLeft = imgHeight;
-let positionY = margin;
+        let positionY = margin;
 
-pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
-heightLeft -= (pdfHeight - margin * 2);
+        pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - margin * 2);
 
-while (heightLeft > 0) {
-    positionY = margin - (imgHeight - heightLeft);
-    pdf.addPage();
-    pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
-    heightLeft -= (pdfHeight - margin * 2);
-}
-
-            while (heightLeft > 0) {
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, y, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-                y -= pageHeight;
-            }
+        while (heightLeft > 0) {
+            positionY = margin - (imgHeight - heightLeft);
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', margin, positionY, imgWidth, imgHeight);
+            heightLeft -= (pdfHeight - margin * 2);
         }
 
         const fileName = getPdfFileName(COMPANY_DATA.currentInvoice.num);
-
         pdf.save(fileName);
 
         showToast('✅ PDF saved');
-
     } catch (err) {
         console.error(err);
         showToast('❌ PDF failed');
     } finally {
+        document.body.style.overflow = '';
         document.body.classList.remove('printing-invoice');
     }
 }
@@ -1607,7 +1590,7 @@ setTimeout(async () => {
     const qrContainer = document.getElementById('invoice-qr-container');
     await waitForQrRender(qrContainer, 2500);
 
-    setTimeout(() => {
+    setTimeout(async () => {
         if (!isQrEnabled()) {
             document.body.classList.add('hide-qr');
         } else {
