@@ -611,7 +611,6 @@ async function generateIosPdf() {
         const leftW = 92;
         const gap = 4;
         const rightW = contentW - leftW - gap;
-        const topCardH = 34;
 
         pdf.setFillColor(248, 250, 252);
         pdf.setDrawColor(226, 232, 240);
@@ -632,22 +631,31 @@ async function generateIosPdf() {
             .filter(Boolean);
 
         const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
+        
+        const clientLineHeight = 4.8;
+        const clientTopOffset = 13.5;
+        const minTopCardH = 34;
+
+        const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
+        const topCardH = Math.max(minTopCardH, neededLeftCardH);
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
 
-        let clientY2 = y + 14.5;
-        clientTextLines.forEach((line, idx) => {
-            if (clientY2 > y + topCardH - 3) return;
-            if (idx === 0) {
-                pdf.setFont('helvetica', 'bold');
-                pdf.text(line, margin + 6, clientY2);
-                pdf.setFont('helvetica', 'normal');
-            } else {
-                pdf.text(line, margin + 6, clientY2);
-            }
-            clientY2 += 5;
-        });
+        let clientY2 = y + clientTopOffset;
+clientTextLines.forEach((line, idx) => {
+        if (clientY2 > y + topCardH - 5) return;
+
+    if (idx === 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(line, margin + 6, clientY2);
+        pdf.setFont('helvetica', 'normal');
+    } else {
+        pdf.text(line, margin + 6, clientY2);
+    }
+
+    clientY2 += clientLineHeight;
+});
 
         // Right card title
         const rightX = margin + leftW + gap;
