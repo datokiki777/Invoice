@@ -948,28 +948,35 @@ y += topCardH + 6;
         }
 
         const fileName = getPdfFileName(ci.num);
-const blob = pdf.output('blob');
+const rawBlob = pdf.output('blob');
+const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
 
-// iOS-ზე აღარ ვიყენებთ window.open('_blank')
+// iOS
 if (isIOS()) {
-    const file = new File([blob], fileName, { type: 'application/pdf' });
+    const file = new File([pdfBlob], fileName, {
+        type: 'application/pdf',
+        lastModified: Date.now()
+    });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-    files: [file]
-});
+            files: [file]
+        });
         return;
     }
 
-    // fallback — გახსნის PDF-ს პირდაპირ იმავე ფანჯარაში
-    const url = URL.createObjectURL(blob);
+    // fallback — გახსნის PDF-ს პირდაპირ
+    const url = URL.createObjectURL(pdfBlob);
     window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     return;
 }
 
-// სხვა მოწყობილობებზე ძველი ლოგიკა
-const file = new File([blob], fileName, { type: 'application/pdf' });
+// სხვა მოწყობილობები
+const file = new File([pdfBlob], fileName, {
+    type: 'application/pdf',
+    lastModified: Date.now()
+});
 
 if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({
@@ -977,7 +984,7 @@ if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] 
         title: fileName
     });
 } else {
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(pdfBlob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
