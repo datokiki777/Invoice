@@ -639,6 +639,18 @@ pdf.setFont('helvetica', 'bold');
 pdf.setFontSize(8);
 pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
 
+pdf.setFillColor(248, 250, 252);
+pdf.setDrawColor(226, 232, 240);
+
+pdf.roundedRect(margin, y, leftW, topCardH, 3, 3, 'FD');
+pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
+
+// Left card title
+pdf.setTextColor(30, 30, 30);
+pdf.setFont('helvetica', 'bold');
+pdf.setFontSize(8);
+pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
+
 pdf.setFont('helvetica', 'normal');
 pdf.setFontSize(10);
 
@@ -882,8 +894,8 @@ y += topCardH + 6;
 
         showToast('✅ PDF ready');
     } catch (err) {
-        console.error(err);
-        showToast('❌ PDF failed');
+    console.error(err);
+    showToast('❌ PDF failed: ' + (err?.message || err));
     }
 }
 
