@@ -1,3 +1,4 @@
+// SW VERSION 4.3
 const CACHE_NAME = 'invoice-pwa-v4.3';
 
 const APP_SHELL = [
@@ -12,31 +13,31 @@ const APP_SHELL = [
   './icons/icon-512-maskable.png'
 ];
 
-// Install: preload ONLY this version's app shell into this version's cache
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(async cache => {
+      await cache.addAll(APP_SHELL);
+    })
   );
-  // intentionally no skipWaiting here
+  // no skipWaiting here on purpose
 });
 
-// Activate: remove old caches only after this SW becomes active
 self.addEventListener('activate', event => {
   event.waitUntil(
-    Promise.all([
-      caches.keys().then(keys =>
-        Promise.all(
-          keys
-            .filter(key => key !== CACHE_NAME)
-            .map(key => caches.delete(key))
-        )
-      ),
-      self.clients.claim()
-    ])
+    (async () => {
+      const keys = await caches.keys();
+
+      await Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      );
+
+      await self.clients.claim();
+    })()
   );
 });
 
-// Helpers
 function isAppShellRequest(request) {
   const url = new URL(request.url);
 
@@ -58,9 +59,6 @@ function isCacheableRequest(request) {
   return request.method === 'GET' && request.url.startsWith(self.location.origin);
 }
 
-// Fetch strategy:
-// APP SHELL => CACHE ONLY from active SW cache
-// other same-origin files => cache first, then network fallback
 self.addEventListener('fetch', event => {
   const { request } = event;
 
@@ -70,36 +68,39 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.open(CACHE_NAME).then(async cache => {
         const cached = await cache.match(request);
-
         if (cached) return cached;
 
-        if (request.mode === 'navigate') {
-          const fallbackIndex = await cache.match('./index.html');
-          if (fallbackIndex) return fallbackIndex;
+        try {
+          const networkResponse = await fetch(request);
+          return networkResponse;
+        } catch (err) {
+          if (request.mode === 'navigate') {
+            const fallbackIndex = await cache.match('./index.html');
+            if (fallbackIndex) return fallbackIndex;
+          }
+          throw err;
         }
-
-        return fetch(request);
       })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(cached => {
+    caches.match(request).then(async cached => {
       if (cached) return cached;
 
-      return fetch(request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        }
-        return networkResponse;
-      });
+      const networkResponse = await fetch(request);
+
+      if (networkResponse && networkResponse.status === 200) {
+        const copy = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      }
+
+      return networkResponse;
     })
   );
 });
 
-// Activate waiting SW only after user confirms update
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

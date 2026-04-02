@@ -690,7 +690,7 @@ async function generateIosPdf() {
         pdf.text(String(L.unitPrice).toUpperCase(), priceX, y + 4.8, { align: 'right' });
         pdf.text(String(L.amount).toUpperCase(), amountX, y + 4.8, { align: 'right' });
 
-        y += 10;
+        y += 12;
 
         pdf.setTextColor(25, 25, 25);
         pdf.setFont('helvetica', 'normal');
@@ -707,8 +707,8 @@ async function generateIosPdf() {
 
             pdf.text(descLines, descX, y);
             pdf.text(qty, qtyX, y, { align: 'right' });
-            pdf.text(`€${price}`, priceX, y, { align: 'right' });
-            pdf.text(`€${amount}`, amountX, y, { align: 'right' });
+            pdf.text(`€ ${price}`, priceX, y, { align: 'right' });
+            pdf.text(`€ ${amount}`, amountX, y, { align: 'right' });
 
             y += rowH;
         });
@@ -726,15 +726,17 @@ async function generateIosPdf() {
         pdf.setFontSize(9.5);
 
         pdf.text(String(L.subtotal), summaryLabelX, y);
-        pdf.text(`€${subtotal.toFixed(2)}`, summaryValueX, y, { align: 'right' });
+        pdf.text(`€ ${subtotal.toFixed(2)}`, summaryValueX, y, { align: 'right' });
         y += 7;
 
-        const vatLabel = currentLang === 'de'
-            ? `MwSt. (${vatRate}%)`
-            : `VAT (${vatRate}%)`;
+        const vatNote = String(ci.vatText || '').trim();
 
-        pdf.text(vatLabel, summaryLabelX, y);
-        pdf.text(`€${vatAmount.toFixed(2)}`, summaryValueX, y, { align: 'right' });
+        const vatLabel = currentLang === 'de'
+    ? `MwSt. (${vatRate}%)${vatNote ? ' ' + vatNote : ''}`
+    : `VAT (${vatRate}%)${vatNote ? ' ' + vatNote : ''}`;
+
+       pdf.text(vatLabel, summaryLabelX, y);
+       pdf.text(`€ ${vatAmount.toFixed(2)}`, summaryValueX, y, { align: 'right' });
         y += 8;
 
         // GESAMT / TOTAL bar
@@ -749,7 +751,7 @@ async function generateIosPdf() {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(12.5);
         pdf.text(String(L.total), totalBarX + 4, y + 1.2);
-        pdf.text(`€${total.toFixed(2)}`, totalBarX + totalBarW - 3, y + 1.2, { align: 'right' });
+        pdf.text(`€ ${total.toFixed(2)}`, totalBarX + totalBarW - 3, y + 1.2, { align: 'right' });
 
         y += 16;
 
