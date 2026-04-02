@@ -496,7 +496,7 @@ function updatePrintButtonsForPlatform() {
 }
 
 async function handleCurrentInvoicePrintAction() {
-    if (isApplePdfMode()) {
+    if (isIOS()) {
         await generateIosPdf();
         return;
     }
@@ -532,67 +532,62 @@ async function generateIosPdf() {
 
         const L = LANG[currentLang] || LANG.en;
 
-        let y = 12;
+        function splitLines(text, maxWidth) {
+            return pdf.splitTextToSize(String(text || '').trim(), maxWidth);
+        }
 
-        // ---------- HELPERS ----------
-        const drawRoundedCard = (x, y, w, h, fillRgb = [248, 250, 252], borderRgb = [225, 230, 235]) => {
-            pdf.setFillColor(...fillRgb);
-            pdf.setDrawColor(...borderRgb);
-            pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
-        };
+        let y = 14;
 
-        const splitLines = (text, width) => {
-            return pdf.splitTextToSize(String(text || '').trim(), width).filter(Boolean);
-        };
+        // =========================
+        // HEADER
+        // =========================
+        const headerH = 30;
 
+        pdf.setFillColor(13, 61, 122);
+        pdf.roundedRect(margin, y, contentW, headerH, 4, 4, 'F');
+
+        // Manual logo so it always appears
+        const logoX = margin + 5;
+        const logoY = y + 4;
+        const logoSize = 12;
+
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'F');
+
+        pdf.setFillColor(13, 61, 122);
+        pdf.roundedRect(logoX + 1.2, logoY + 1.2, logoSize - 2.4, logoSize - 2.4, 1.6, 1.6, 'F');
+
+        pdf.setFillColor(255, 255, 255);
+        pdf.triangle(
+            logoX + 2.5, logoY + 9.5,
+            logoX + 5.2, logoY + 4.5,
+            logoX + 7.0, logoY + 7.2,
+            'F'
+        );
+        pdf.triangle(
+            logoX + 5.8, logoY + 7.8,
+            logoX + 7.6, logoY + 3.8,
+            logoX + 9.3, logoY + 9.5,
+            'F'
+        );
+
+        pdf.setFillColor(244, 179, 0);
+        pdf.circle(logoX + 8.7, logoY + 3.2, 0.9, 'F');
+
+        // Company name
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text(String(company.name || ''), margin + 20, y + 8);
+
+        // Company lines — hide empty ones
         const companyLines = [
             company.reg || '',
             company.addr || '',
             company.phone || '',
             company.email || '',
             company.website || ''
-        ].filter(v => String(v || '').trim());
-
-        const clientLines = String(ci.client || '')
-            .split('\n')
-            .map(s => s.trim())
-            .filter(Boolean);
-
-        const bankLines = [
-            (ci.bankRecip || company.bankRecip) ? `${L.recipient}: ${ci.bankRecip || company.bankRecip}` : '',
-            (ci.bankName || company.bankName) ? `${L.bank}: ${ci.bankName || company.bankName}` : '',
-            (ci.bankIban || company.bankIban) ? `IBAN: ${ci.bankIban || company.bankIban}` : '',
-            (ci.bankBic || company.bankBic) ? `BIC: ${ci.bankBic || company.bankBic}` : ''
         ].filter(Boolean);
-
-        // ---------- HEADER ----------
-        const headerH = 32; // უფრო მაღალი
-        pdf.setFillColor(13, 61, 122);
-        pdf.roundedRect(margin, y, contentW, headerH, 3, 3, 'F');
-
-        // LOGO
-        const logoX = margin + 4;
-        const logoY = y + 5;
-        const logoSize = 12;
-
-        const logoKey = company.logoKey || 'shared1';
-const logoMarkup = LOGO_SVG[logoKey] || LOGO_SVG.shared1;
-
-if (logoKey !== 'none' && logoMarkup) {
-    try {
-        const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(logoMarkup)));
-        pdf.addImage(svgBase64, 'SVG', logoX, logoY, logoSize, logoSize);
-    } catch (e) {
-        pdf.setDrawColor(255, 255, 255);
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(logoX, logoY, logoSize, logoSize, 2, 2, 'FD');
-    }
-}
-
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        pdf.text(String(company.name || ''), margin + 20, y + 8);
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(7.5);
@@ -600,90 +595,106 @@ if (logoKey !== 'none' && logoMarkup) {
         let companyY = y + 12.5;
         companyLines.forEach(line => {
             pdf.text(String(line), margin + 20, companyY);
-            companyY += 4.1;
+            companyY += 3.9;
         });
 
+        // Invoice title
         pdf.setFont('times', 'bold');
-        pdf.setFontSize(19);
-        pdf.text(L.invoiceWord, pageW - margin - 6, y + 10.5, { align: 'right' });
+        pdf.setFontSize(17);
+        pdf.text(String(L.invoiceWord || 'INVOICE'), pageW - margin - 6, y + 10, { align: 'right' });
 
         y += headerH + 6;
 
-        // ---------- CLIENT / INVOICE CARDS ----------
+        // =========================
+        // TOP CARDS
+        // =========================
         const leftW = 92;
         const gap = 4;
         const rightW = contentW - leftW - gap;
+        const topCardH = 34;
+
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(226, 232, 240);
+
+        pdf.roundedRect(margin, y, leftW, topCardH, 3, 3, 'FD');
+        pdf.roundedRect(margin + leftW + gap, y, rightW, topCardH, 3, 3, 'FD');
+
+        // Left card title
+        pdf.setTextColor(30, 30, 30);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
+
+        // Client lines
+        const clientLines = String(ci.client || '')
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean);
+
+        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+
+        let clientY2 = y + 14.5;
+        clientTextLines.forEach((line, idx) => {
+            if (clientY2 > y + topCardH - 3) return;
+            if (idx === 0) {
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(line, margin + 6, clientY2);
+                pdf.setFont('helvetica', 'normal');
+            } else {
+                pdf.text(line, margin + 6, clientY2);
+            }
+            clientY2 += 5;
+        });
+
+        // Right card title
+        const rightX = margin + leftW + gap;
 
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
-
-        const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 16));
-        const clientCardH = Math.max(30, 10 + clientTextLines.length * 5.1);
-
-        const invCardH = clientCardH;
-
-        drawRoundedCard(margin, y, leftW, clientCardH, [247, 249, 252], [222, 226, 230]);
-        drawRoundedCard(margin + leftW + gap, y, rightW, invCardH, [247, 249, 252], [222, 226, 230]);
-
-        pdf.setTextColor(35, 35, 35);
-        pdf.text(String(L.billedTo).toUpperCase(), margin + 4, y + 6);
-        pdf.text(String(L.invoiceDetails).toUpperCase(), margin + leftW + gap + 4, y + 6);
+        pdf.text(String(L.invoiceDetails).toUpperCase(), rightX + 4, y + 6);
 
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(11);
-
-        let clientY2 = y + 12;
-        if (clientTextLines.length) {
-            pdf.text(clientTextLines[0], margin + 6, clientY2);
-            clientY2 += 5.5;
-        }
+        pdf.setFontSize(7.5);
+        pdf.text(String(L.invoiceNum).toUpperCase(), rightX + 4, y + 14);
+        pdf.text(String(L.date).toUpperCase(), rightX + 4, y + 24);
 
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
+        pdf.setFontSize(9.5);
+        pdf.text(String(ci.num || ''), pageW - margin - 4, y + 14, { align: 'right' });
+        pdf.text(String(ci.date || ''), pageW - margin - 4, y + 24, { align: 'right' });
 
-        clientTextLines.slice(1).forEach(line => {
-            pdf.text(line, margin + 6, clientY2);
-            clientY2 += 5.1;
-        });
+        y += topCardH + 6;
 
-        const rx = margin + leftW + gap + 4;
-        const rv = pageW - margin - 4;
+        // =========================
+        // ITEMS TABLE
+        // =========================
+        const tableHeaderH = 7;
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8.5);
-        pdf.text(L.invoiceNum.toUpperCase(), rx, y + 12);
-        pdf.text(L.date.toUpperCase(), rx, y + 22);
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.text(String(ci.num || ''), rv, y + 12, { align: 'right' });
-        pdf.text(String(ci.date || ''), rv, y + 22, { align: 'right' });
-
-        y += clientCardH + 6;
-
-        // ---------- TABLE HEADER ----------
         pdf.setFillColor(13, 61, 122);
-        pdf.rect(margin, y, contentW, 8, 'F');
+        pdf.rect(margin, y, contentW, tableHeaderH, 'F');
 
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
+        pdf.setFontSize(7.5);
 
+        const descX = margin + 3;
         const qtyX = margin + 126;
-        const priceX = margin + 154;
+        const priceX = margin + 152;
         const amountX = pageW - margin - 3;
 
-        pdf.text(L.description.toUpperCase(), margin + 3, y + 5.5);
-        pdf.text(L.qty.toUpperCase(), qtyX, y + 5.5, { align: 'right' });
-        pdf.text(L.unitPrice.toUpperCase(), priceX, y + 5.5, { align: 'right' });
-        pdf.text(L.amount.toUpperCase(), amountX, y + 5.5, { align: 'right' });
+        pdf.text(String(L.description).toUpperCase(), descX, y + 4.8);
+        pdf.text(String(L.qty).toUpperCase(), qtyX, y + 4.8, { align: 'right' });
+        pdf.text(String(L.unitPrice).toUpperCase(), priceX, y + 4.8, { align: 'right' });
+        pdf.text(String(L.amount).toUpperCase(), amountX, y + 4.8, { align: 'right' });
 
-        y += 11;
+        y += 10;
 
-        // ---------- ITEMS ----------
-        pdf.setTextColor(35, 35, 35);
+        pdf.setTextColor(25, 25, 25);
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
+        pdf.setFontSize(8.5);
 
         items.forEach(item => {
             const desc = String(item.desc || '').trim() || '-';
@@ -691,10 +702,10 @@ if (logoKey !== 'none' && logoMarkup) {
             const price = (parseFloat(item.price) || 0).toFixed(2);
             const amount = ((parseFloat(item.qty) || 0) * (parseFloat(item.price) || 0)).toFixed(2);
 
-            const descLines = splitLines(desc, 108);
-            const rowH = Math.max(7, descLines.length * 4.3);
+            const descLines = splitLines(desc, 116);
+            const rowH = Math.max(6, descLines.length * 4.1);
 
-            pdf.text(descLines, margin + 3, y);
+            pdf.text(descLines, descX, y);
             pdf.text(qty, qtyX, y, { align: 'right' });
             pdf.text(`€${price}`, priceX, y, { align: 'right' });
             pdf.text(`€${amount}`, amountX, y, { align: 'right' });
@@ -704,99 +715,144 @@ if (logoKey !== 'none' && logoMarkup) {
 
         y += 3;
 
-        // ---------- SUMMARY ----------
-        const summaryLeftX = margin + 98;
-        const summaryRightX = pageW - margin - 3;
+        // =========================
+        // SUMMARY
+        // =========================
+        const summaryLabelX = margin + 118;
+        const summaryValueX = amountX;
 
+        pdf.setTextColor(35, 35, 35);
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.text(L.subtotal, summaryLeftX, y, { align: 'left' });
-        pdf.text(`€${subtotal.toFixed(2)}`, summaryRightX, y, { align: 'right' });
+        pdf.setFontSize(9.5);
+
+        pdf.text(String(L.subtotal), summaryLabelX, y);
+        pdf.text(`€${subtotal.toFixed(2)}`, summaryValueX, y, { align: 'right' });
         y += 7;
 
-        const vatLabel = currentLang === 'de' ? `MwSt. (${vatRate}%)` : `VAT (${vatRate}%)`;
-        pdf.text(vatLabel, summaryLeftX, y, { align: 'left' });
-        pdf.text(`€${vatAmount.toFixed(2)}`, summaryRightX, y, { align: 'right' });
-        y += 6;
+        const vatLabel = currentLang === 'de'
+            ? `MwSt. (${vatRate}%)`
+            : `VAT (${vatRate}%)`;
 
-        // პატარა ყვითელი total bar
-        const totalBoxX = summaryLeftX - 2;
-        const totalBoxW = summaryRightX - totalBoxX;
-        const totalBoxH = 8;
+        pdf.text(vatLabel, summaryLabelX, y);
+        pdf.text(`€${vatAmount.toFixed(2)}`, summaryValueX, y, { align: 'right' });
+        y += 8;
 
-        pdf.setFillColor(244, 184, 0);
-        pdf.roundedRect(totalBoxX, y, totalBoxW, totalBoxH, 3, 3, 'F');
+        // GESAMT / TOTAL bar
+        const totalBarX = summaryLabelX - 3;
+        const totalBarW = amountX - totalBarX;
+        const totalBarH = 9;
 
+        pdf.setFillColor(244, 179, 0);
+        pdf.roundedRect(totalBarX, y - 4.8, totalBarW, totalBarH, 2.5, 2.5, 'F');
+
+        pdf.setTextColor(25, 25, 25);
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        pdf.setTextColor(35, 35, 35);
-        pdf.text(L.total, totalBoxX + 4, y + 6.1);
-        pdf.text(`€${total.toFixed(2)}`, totalBoxX + totalBoxW - 4, y + 6.1, { align: 'right' });
+        pdf.setFontSize(12.5);
+        pdf.text(String(L.total), totalBarX + 4, y + 1.2);
+        pdf.text(`€${total.toFixed(2)}`, totalBarX + totalBarW - 3, y + 1.2, { align: 'right' });
 
-        y += totalBoxH + 6;
+        y += 16;
 
-        // ---------- BANK / TERMS ----------
+        // =========================
+        // FOOTER CARDS
+        // =========================
         const footGap = 4;
         const footW = (contentW - footGap) / 2;
 
-        const termsText = String(L.termsText || '').replace(/\n/g, ' ');
-        const termsLines = splitLines(termsText, footW - 8);
+        const bankLines = [
+            (ci.bankRecip || company.bankRecip) ? `${L.recipient}: ${ci.bankRecip || company.bankRecip}` : '',
+            (ci.bankName || company.bankName) ? `${L.bank}: ${ci.bankName || company.bankName}` : '',
+            (ci.bankIban || company.bankIban) ? `IBAN: ${ci.bankIban || company.bankIban}` : '',
+            (ci.bankBic || company.bankBic) ? `BIC: ${ci.bankBic || company.bankBic}` : ''
+        ].filter(Boolean);
 
-        const bankCardH = Math.max(34, 13 + bankLines.length * 5.4);
-        const termsCardH = Math.max(34, 13 + termsLines.length * 4.8);
+        const termsLines = splitLines(
+            String(L.termsText || '').replace(/\n/g, ' '),
+            footW - 12
+        );
+
+        const bankCardH = Math.max(38, 15 + bankLines.length * 5.8);
+        const termsCardH = Math.max(36, 15 + termsLines.length * 5.2);
         const footerH = Math.max(bankCardH, termsCardH);
 
-        drawRoundedCard(margin, y, footW, footerH, [248, 250, 252], [222, 226, 230]);
-        drawRoundedCard(margin + footW + footGap, y, footW, footerH, [248, 250, 252], [222, 226, 230]);
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(226, 232, 240);
 
+        pdf.roundedRect(margin, y, footW, footerH, 3, 3, 'FD');
+        pdf.roundedRect(margin + footW + footGap, y, footW, footerH, 3, 3, 'FD');
+
+        // Bank title
+        pdf.setTextColor(30, 30, 30);
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8.5);
-        pdf.setTextColor(35, 35, 35);
-
+        pdf.setFontSize(8);
         pdf.text(String(L.bankDetails).toUpperCase(), margin + 4, y + 6);
-        pdf.text(String(L.terms).toUpperCase(), margin + footW + footGap + 4, y + 6);
 
         pdf.setDrawColor(13, 61, 122);
-        pdf.line(margin + 4, y + 9, margin + footW - 4, y + 9);
-        pdf.line(margin + footW + footGap + 4, y + 9, pageW - margin - 4, y + 9);
+        pdf.setLineWidth(0.35);
+        pdf.line(margin + 4, y + 8.8, margin + footW - 4, y + 8.8);
 
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
+        pdf.setFontSize(8.5);
 
-        let bankY = y + 17;
+        let bankY = y + 18.5;
         bankLines.forEach(line => {
-            pdf.text(line, margin + 4, bankY);
-            bankY += 5.2;
+            pdf.text(String(line), margin + 4, bankY);
+            bankY += 5.7;
         });
 
-        pdf.text(termsLines, margin + footW + footGap + 4, y + 15);
+        // Terms title
+        const termsX = margin + footW + footGap;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text(String(L.terms).toUpperCase(), termsX + 4, y + 6);
+
+        pdf.setDrawColor(13, 61, 122);
+        pdf.line(termsX + 4, y + 8.8, termsX + footW - 4, y + 8.8);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.2);
+        pdf.text(termsLines, termsX + 4, y + 17.5);
 
         y += footerH + 8;
 
-        // ---------- QR ----------
+        // =========================
+        // QR
+        // =========================
         const qrImg = document.querySelector('#invoice-qr-container img');
+
         if (qrImg && qrImg.src) {
+            const qrBoxW = 34;
+            const qrBoxH = 42;
+            const qrX = (pageW - qrBoxW) / 2;
+
+            pdf.setFillColor(250, 250, 250);
+            pdf.setDrawColor(226, 232, 240);
+            pdf.roundedRect(qrX, y, qrBoxW, qrBoxH, 3, 3, 'FD');
+
+            pdf.setTextColor(35, 35, 35);
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(10);
-            pdf.text(currentLang === 'de' ? 'GiroCode' : 'QR Code', pageW / 2, y + 3, { align: 'center' });
+            pdf.setFontSize(8.5);
+            pdf.text(currentLang === 'de' ? 'GiroCode' : 'QR Code', pageW / 2, y + 5, { align: 'center' });
 
-            pdf.setDrawColor(225, 230, 235);
-            pdf.setFillColor(255, 255, 255);
-            pdf.roundedRect(pageW / 2 - 22, y + 6, 44, 52, 3, 3, 'FD');
-
-            pdf.addImage(qrImg.src, 'PNG', pageW / 2 - 15, y + 12, 30, 30);
+            pdf.addImage(qrImg.src, 'PNG', pageW / 2 - 10, y + 8, 20, 20);
 
             pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(8);
-            pdf.text(currentLang === 'de' ? 'Mit Ihrer Banking-App scannen' : 'Scan with your banking app', pageW / 2, y + 45, { align: 'center' });
+            pdf.setFontSize(6.5);
+            pdf.text(
+                currentLang === 'de' ? 'Mit Ihrer Banking-App scannen' : 'Scan with your banking app',
+                pageW / 2,
+                y + 31,
+                { align: 'center' }
+            );
 
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(10);
-            pdf.text(`${total.toFixed(2)} EUR`, pageW / 2, y + 51, { align: 'center' });
+            pdf.setFontSize(8.3);
+            pdf.text(`${total.toFixed(2)} EUR`, pageW / 2, y + 36, { align: 'center' });
 
             pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(8);
-            pdf.text(String(ci.num || ''), pageW / 2, y + 55, { align: 'center' });
+            pdf.setFontSize(6.7);
+            pdf.text(String(ci.num || ''), pageW / 2, y + 40, { align: 'center' });
         }
 
         const fileName = getPdfFileName(ci.num);
@@ -1861,7 +1917,7 @@ setTimeout(async () => {
             showPage(previousPage.replace('page-', ''));
         }
 
-        if (isApplePdfMode()) {
+        iif (isIOS()) {
     try {
         await generateIosPdf();
     } finally {
