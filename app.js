@@ -881,16 +881,25 @@ y += topCardH + 6;
         const blob = pdf.output('blob');
         const file = new File([blob], fileName, { type: 'application/pdf' });
 
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file],
-                title: fileName
-            });
-        } else {
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
-        }
+        // iOS-ზე ყოველთვის პირდაპირ გავხსნათ PDF
+if (isIOS()) {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+}
+
+// სხვა მოწყობილობებზე დარჩეს ძველი ლოგიკა
+if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({
+        files: [file],
+        title: fileName
+    });
+} else {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 
         showToast('✅ PDF ready');
     } catch (err) {
