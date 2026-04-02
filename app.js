@@ -1917,7 +1917,7 @@ setTimeout(async () => {
             showPage(previousPage.replace('page-', ''));
         }
 
-        iif (isIOS()) {
+        if (isIOS()) {
     try {
         await generateIosPdf();
     } finally {
