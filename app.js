@@ -690,9 +690,9 @@ if (logoKey !== 'none') {
        // =========================
 // TOP CARDS
 // =========================
-const leftW = 102;
 const gap = 4;
-const rightW = contentW - leftW - gap;
+const leftW = (contentW - gap) / 2;
+const rightW = (contentW - gap) / 2;
 
 // Client lines
 const clientLines = String(ci.client || '')
@@ -896,20 +896,16 @@ const footerH = Math.max(bankCardH, termsCardH);
         // Terms title
         const termsX = margin + footW + footGap;
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8);
-        pdf.text(String(L.terms).toUpperCase(), termsX + 4, y + 6);
+        pdf.setDrawColor(13, 61, 122);
+        pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
-pdf.setDrawColor(13, 61, 122);
-pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.2);
 
-pdf.setFont('helvetica', 'normal');
-pdf.setFontSize(8.2);
-
-let termsY = y + 16.2;
-termsLines.forEach(line => {
-    pdf.text(String(line), termsX + 4, termsY);
-    termsY += 4.8;
+        let termsY = y + 16.2;
+        termsLines.forEach(line => {
+        pdf.text(String(line), termsX + 4, termsY);
+        termsY += 4.8;
 });
 
         y += footerH + 8;
