@@ -703,7 +703,7 @@ const clientLines = String(ci.client || '')
 const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 10));
 
 const clientLineHeight = 4.8;
-const clientTopOffset = 13.5;
+const clientTopOffset = 10.5;
 const minTopCardH = 34;
 
 const neededLeftCardH = clientTopOffset + (clientTextLines.length * clientLineHeight) + 4;
@@ -899,12 +899,12 @@ y += topCardH + 6;
         pdf.setFontSize(8);
         pdf.text(String(L.terms).toUpperCase(), termsX + 4, y + 6);
 
-        pdf.setDrawColor(13, 61, 122);
-        pdf.line(termsX + 4, y + 8.8, termsX + footW - 4, y + 8.8);
+pdf.setDrawColor(13, 61, 122);
+pdf.line(termsX + 4, y + 9.6, termsX + footW - 4, y + 9.6);
 
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8.2);
-        pdf.text(termsLines, termsX + 4, y + 17.5);
+pdf.setFont('helvetica', 'normal');
+pdf.setFontSize(8.2);
+pdf.text(termsLines, termsX + 4, y + 19.5);
 
         y += footerH + 8;
 
