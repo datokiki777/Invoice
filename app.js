@@ -618,7 +618,7 @@ const clientLines = String(ci.client || '')
     .map(s => s.trim())
     .filter(Boolean);
 
-const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 22));
+const clientTextLines = clientLines.flatMap(line => splitLines(line, leftW - 14));
 
 const clientLineHeight = 4.8;
 const clientTopOffset = 13.5;
