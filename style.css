@@ -3315,3 +3315,7 @@ body.pdf-mode .ios-banner {
     }
 }
 
+.printing-invoice * {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
