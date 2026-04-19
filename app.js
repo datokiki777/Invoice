@@ -131,10 +131,7 @@ function createEmptyCompanyData() {
             items: [{ desc: '', qty: 1, price: 0 }],
 
             // ✅ bank fields
-            bankRecip: '',
-            bankName: '',
-            bankIban: '',
-            bankBic: ''
+            
         }
     };
 }
@@ -368,11 +365,7 @@ function loadCompanyData(id) {
             vatRate: 0,
             vatText: '',
             paymentStatus: 'unpaid',
-            items: [{ desc: '', qty: 1, price: 0 }],
-            bankRecip: '',
-            bankName: '',
-            bankIban: '',
-            bankBic: ''
+            items: [{ desc: '', qty: 1, price: 0 }]
         };
     }
     syncSavedInvoiceProtection();
@@ -2129,11 +2122,7 @@ function newInvoice() {
             vatRate: 0,
             vatText: '',
             paymentStatus: 'unpaid',
-            items: [{ desc: '', qty: 1, price: 0 }],
-            bankRecip: '',
-            bankName: '',
-            bankIban: '',
-            bankBic: ''
+            items: [{ desc: '', qty: 1, price: 0 }]
         };
 
         resetSavedInvoiceProtection();
@@ -2331,7 +2320,7 @@ function loadLastInvoiceDescriptionForClient(clientId) {
     
     if (clientInvoices.length === 0) return;
     
-    const lastInvoice = clientInvoices[clientInvoices.length - 1];
+    const lastInvoice = clientInvoices[0];
     
     if (lastInvoice && lastInvoice.items && lastInvoice.items.length > 0) {
         const lastDescription = lastInvoice.items[0].desc || '';
